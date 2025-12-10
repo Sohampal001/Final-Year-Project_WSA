@@ -1,9 +1,9 @@
-// components/LocationWidget.tsx
 import { theme } from '@/components/theme';
 import * as Location from 'expo-location';
 import React from 'react';
 import {
   Alert,
+  Image,
   Linking,
   Platform,
   Pressable,
@@ -15,17 +15,18 @@ import {
 type Props = {
   title: string;
   subtitle: string;
-  query: string; // text searched in Google Maps, e.g. "police station"
+  query: string; // e.g. "police station"
+  icon?: any;    // image source for future logo
 };
 
-const LocationWidget: React.FC<Props> = ({ title, subtitle, query }) => {
+const LocationWidget: React.FC<Props> = ({ title, subtitle, query, icon }) => {
   const handlePress = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
           'Permission needed',
-          'Location permission is required to search nearby places.',
+          'Location permission is required to search nearby places.'
         );
         return;
       }
@@ -38,7 +39,7 @@ const LocationWidget: React.FC<Props> = ({ title, subtitle, query }) => {
         url = `geo:${latitude},${longitude}?q=${encodeURIComponent(query)}`;
       } else {
         url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-          query,
+          query
         )}`;
       }
 
@@ -57,7 +58,16 @@ const LocationWidget: React.FC<Props> = ({ title, subtitle, query }) => {
 
   return (
     <Pressable style={styles.card} onPress={handlePress}>
-      <View>
+      {/* floating icon bubble */}
+      <View style={styles.iconBubble}>
+        {icon ? (
+          <Image source={icon} style={styles.iconImage} />
+        ) : (
+          <Text style={styles.iconEmoji}>📍</Text>
+        )}
+      </View>
+
+      <View style={styles.textContainer}>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
@@ -72,6 +82,31 @@ const styles = StyleSheet.create({
     ...theme.components.card,
     ...theme.shadow.card,
     marginBottom: theme.spacing.md,
+    paddingLeft: 72, // space for floating icon
+    paddingVertical: 18,
+    position: 'relative',
+  },
+  iconBubble: {
+    position: 'absolute',
+    left: 18,
+    top: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconImage: {
+    width: 32,
+    height: 32,
+    resizeMode: 'contain',
+  },
+  iconEmoji: {
+    fontSize: 24,
+  },
+  textContainer: {
+    justifyContent: 'center',
   },
   title: {
     ...theme.text.sectionTitle,

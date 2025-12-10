@@ -1,17 +1,20 @@
-// app/(tabs)/_layout.tsx
-import { Tabs } from 'expo-router';
+// app/_layout.tsx
+// @ts-nocheck
+import { Stack } from 'expo-router';
+import React from 'react';
 
-export default function TabsLayout() {
+export default function RootLayout() {
   return (
-    <Tabs>
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: 'Home',
-          tabBarLabel: 'Home',
-        }}
-      />
-      {/* later you can add more tabs like sos, profile, etc. */}
-    </Tabs>
+    <Stack screenOptions={{ headerShown: false }}>
+      {/* First screen when app opens */}
+      <Stack.Screen name="index" />
+
+      {/* Auth screens */}
+      <Stack.Screen name="login" />
+      <Stack.Screen name="signup" />
+
+      {/* Tabs group */}
+      <Stack.Screen name="(tabs)" />
+    </Stack>
   );
 }
