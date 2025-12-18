@@ -1,172 +1,316 @@
 // app/signup.tsx
 // @ts-nocheck
-import React from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
-  SafeAreaView,
-} from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import {
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 export default function SignUpScreen() {
   const router = useRouter();
+  const [step, setStep] = useState(1);
 
-  const fields = [
-    { label: 'Name', icon: 'person-outline', type: 'default' },
-    { label: 'Phone Number', icon: 'call-outline', type: 'phone-pad' },
-    { label: 'Email ID', icon: 'mail-outline', type: 'email-address' },
-    { label: 'Aadhar Card Number', icon: 'card-outline', type: 'default' },
-    { label: 'Guardian Name', icon: 'person-circle-outline', type: 'default' },
-    { label: 'Guardian Phone Number', icon: 'call-outline', type: 'phone-pad' },
-    { label: 'Code Word', icon: 'key-outline', type: 'default' },
-    { label: 'Password', icon: 'lock-closed-outline', type: 'default', secure: true },
-    {
-      label: 'Retype Password',
-      icon: 'lock-closed-outline',
-      type: 'default',
-      secure: true,
-    },
-  ];
+  const next = () => setStep(step + 1);
+  const back = () => setStep(step - 1);
+
+  const Input = ({
+    label,
+    icon,
+    placeholder,
+    keyboardType = 'default',
+  }: any) => (
+    <View style={styles.field}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.inputBox}>
+        <Ionicons name={icon} size={18} color="#5eead4" />
+        <TextInput
+          placeholder={placeholder}
+          placeholderTextColor="#9ca3af"
+          style={styles.input}
+          keyboardType={keyboardType}
+        />
+      </View>
+    </View>
+  );
+
+  const Header = ({ title, subtitle }: any) => (
+    <View style={styles.header}>
+      <MaterialCommunityIcons name="shield-check" size={46} color="#ffffff" />
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.subtitle}>{subtitle}</Text>
+
+      {/* Progress dots */}
+      <View style={styles.progressRow}>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <View
+            key={i}
+            style={[
+              styles.progressDot,
+              step >= i && styles.progressDotActive,
+            ]}
+          />
+        ))}
+      </View>
+    </View>
+  );
 
   return (
-    <SafeAreaView style={styles.signupSafe}>
-      <ScrollView contentContainerStyle={styles.signupScroll}>
-        <View style={styles.signupHeader}>
-          <View style={styles.signupLogoBox}>
-            <MaterialCommunityIcons name="shield-check" size={40} color="#ffffff" />
-          </View>
-          <Text style={styles.signupTitle}>Create Account</Text>
-          <Text style={styles.signupSubtitle}>Join Suraksha for your safety</Text>
-        </View>
+    <SafeAreaView style={styles.safe}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+        {/* ---------- STEP 1 ---------- */}
+        {step === 1 && (
+          <>
+            <Header
+              title="Basic Details"
+              subtitle="Enter your personal information"
+            />
+            <Input label="Full Name" icon="person-outline" placeholder="Your name" />
+            <Input
+              label="Email ID"
+              icon="mail-outline"
+              placeholder="your@email.com"
+              keyboardType="email-address"
+            />
+            <Input
+              label="Phone Number"
+              icon="call-outline"
+              placeholder="Mobile number"
+              keyboardType="phone-pad"
+            />
+            <Input label="OTP" icon="key-outline" placeholder="Enter OTP" />
 
-        <View style={styles.signupCard}>
-          {fields.map((field, idx) => (
-            <View key={idx} style={styles.fieldContainer}>
-              <Text style={styles.fieldLabelLightSmall}>{field.label}</Text>
-              <View style={styles.inputWrapperGlassSmall}>
-                <Ionicons
-                  name={field.icon}
-                  size={18}
-                  color="#5eead4"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  placeholder={`Enter ${field.label.toLowerCase()}`}
-                  placeholderTextColor="#d4d4d8"
-                  secureTextEntry={field.secure}
-                  keyboardType={field.type}
-                  style={styles.inputGlassSmall}
-                />
-              </View>
+            <View style={styles.singleBtn}>
+              <TouchableOpacity style={styles.nextBtn} onPress={next}>
+                <Text style={styles.btnText}>Next</Text>
+                <Ionicons name="arrow-forward" size={20} color="#ffffff" />
+              </TouchableOpacity>
             </View>
-          ))}
+          </>
+        )}
 
-          <TouchableOpacity
-            style={[styles.primaryGradientButton, { marginTop: 10 }]}
-            onPress={() => {
-              router.replace('/(tabs)/home');
-            }}
-          >
-            <Text style={styles.primaryGradientText}>Sign Up</Text>
-          </TouchableOpacity>
+        {/* ---------- STEP 2 ---------- */}
+        {step === 2 && (
+          <>
+            <Header
+              title="Aadhaar Details"
+              subtitle="Identity verification"
+            />
+            <Input
+              label="Aadhaar Number"
+              icon="card-outline"
+              placeholder="XXXX XXXX XXXX"
+            />
 
-          <TouchableOpacity onPress={() => router.replace('/login')}>
-            <Text style={styles.signupFooterText}>
-              Already have an account?{' '}
-              <Text style={{ color: '#5eead4', fontWeight: '700' }}>Login</Text>
-            </Text>
-          </TouchableOpacity>
-        </View>
+            <View style={styles.doubleBtn}>
+              <TouchableOpacity style={styles.backBtn} onPress={back}>
+                <Ionicons name="arrow-back" size={20} color="#ffffff" />
+                <Text style={styles.btnText}>Back</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.nextBtn} onPress={next}>
+                <Text style={styles.btnText}>Next</Text>
+                <Ionicons name="arrow-forward" size={20} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
+        {/* ---------- STEP 3 ---------- */}
+        {step === 3 && (
+          <>
+            <Header
+              title="Guardian Details"
+              subtitle="Emergency contact person"
+            />
+            <Input
+              label="Guardian Name"
+              icon="person-outline"
+              placeholder="Guardian name"
+            />
+            <Input
+              label="Guardian Email"
+              icon="mail-outline"
+              placeholder="guardian@email.com"
+            />
+            <Input
+              label="Guardian Phone"
+              icon="call-outline"
+              placeholder="Phone number"
+              keyboardType="phone-pad"
+            />
+
+            <View style={styles.doubleBtn}>
+              <TouchableOpacity style={styles.backBtn} onPress={back}>
+                <Ionicons name="arrow-back" size={20} color="#ffffff" />
+                <Text style={styles.btnText}>Back</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.nextBtn} onPress={next}>
+                <Text style={styles.btnText}>Next</Text>
+                <Ionicons name="arrow-forward" size={20} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
+        {/* ---------- STEP 4 ---------- */}
+        {step === 4 && (
+          <>
+            <Header
+              title="Address Details"
+              subtitle="Location information"
+            />
+            <Input
+              label="Home Address"
+              icon="home-outline"
+              placeholder="Home address"
+            />
+            <Input
+              label="Work Address"
+              icon="business-outline"
+              placeholder="Work address"
+            />
+
+            <View style={styles.doubleBtn}>
+              <TouchableOpacity style={styles.backBtn} onPress={back}>
+                <Ionicons name="arrow-back" size={20} color="#ffffff" />
+                <Text style={styles.btnText}>Back</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.nextBtn} onPress={next}>
+                <Text style={styles.btnText}>Next</Text>
+                <Ionicons name="arrow-forward" size={20} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
+        {/* ---------- STEP 5 ---------- */}
+        {step === 5 && (
+          <>
+            <Header
+              title="Security Code"
+              subtitle="Set your secret code word"
+            />
+            <Input
+              label="Code Word"
+              icon="lock-closed-outline"
+              placeholder="Example: helpme"
+            />
+
+            <View style={styles.doubleBtn}>
+              <TouchableOpacity style={styles.backBtn} onPress={back}>
+                <Ionicons name="arrow-back" size={20} color="#ffffff" />
+                <Text style={styles.btnText}>Back</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.nextBtn}
+                onPress={() => router.replace('/(tabs)/home')}
+              >
+                <Text style={styles.btnText}>Sign Up</Text>
+                <Ionicons name="checkmark-circle-outline" size={22} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  signupSafe: {
+  safe: {
     flex: 1,
     backgroundColor: '#020617',
+    padding: 20,
   },
-  signupScroll: {
-    padding: 24,
-    paddingBottom: 40,
-  },
-  signupHeader: {
+  header: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 18,
   },
-  signupLogoBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: '#14b8a6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  signupTitle: {
+  title: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#ffffff',
+    marginTop: 6,
   },
-  signupSubtitle: {
+  subtitle: {
     fontSize: 13,
     color: '#a5f3fc',
+    marginBottom: 10,
   },
-  signupCard: {
-    backgroundColor: 'rgba(15,23,42,0.7)',
-    borderRadius: 24,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.6)',
+  progressRow: {
+    flexDirection: 'row',
+    gap: 6,
   },
-  fieldContainer: {
+  progressDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#334155',
+  },
+  progressDotActive: {
+    backgroundColor: '#14b8a6',
+  },
+  field: {
     marginBottom: 14,
   },
-  fieldLabelLightSmall: {
-    fontSize: 11,
-    fontWeight: '700',
+  label: {
     color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
     marginBottom: 4,
   },
-  inputWrapperGlassSmall: {
+  inputBox: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: 'rgba(148,163,184,0.8)',
+    borderWidth: 1.5,
+    borderColor: '#334155',
     paddingHorizontal: 10,
-    backgroundColor: 'rgba(15,23,42,0.6)',
+    backgroundColor: '#0f172a',
   },
-  inputIcon: {
-    marginRight: 6,
-  },
-  inputGlassSmall: {
+  input: {
     flex: 1,
-    height: 40,
-    fontSize: 13,
+    height: 42,
     color: '#ffffff',
+    marginLeft: 6,
   },
-  primaryGradientButton: {
-    borderRadius: 18,
-    paddingVertical: 12,
+  singleBtn: {
+    marginTop: 20,
+    alignItems: 'flex-end',
+  },
+  doubleBtn: {
+    marginTop: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#334155',
+    padding: 12,
+    borderRadius: 16,
+    gap: 6,
+  },
+  nextBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#14b8a6',
+    padding: 12,
+    borderRadius: 16,
+    gap: 6,
   },
-  primaryGradientText: {
+  btnText: {
     color: '#ffffff',
     fontWeight: '700',
-    fontSize: 15,
-  },
-  signupFooterText: {
-    color: '#e5e7eb',
-    textAlign: 'center',
-    marginTop: 12,
-    fontSize: 13,
   },
 });
