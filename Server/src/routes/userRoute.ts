@@ -12,6 +12,8 @@ import {
   deleteUser,
   getAllUsers,
   checkUserExists,
+  sendEmailOTP,
+  verifyEmailOTP,
 } from "../controllers/userController";
 import { authenticate, authorize } from "../middlewares/auth";
 
@@ -25,6 +27,10 @@ router.get("/check-exists", checkUserExists);
 // Protected routes - Authentication required
 router.use(authenticate); // All routes below require authentication
 
+// OTP routes
+router.post("/send-email-otp", sendEmailOTP);
+router.post("/verify-email-otp", verifyEmailOTP);
+
 // User management routes
 router.get("/users", authorize("VOLUNTEER"), getAllUsers); // Only volunteers can see all users
 router.get("/users/:id", getUserById);
@@ -33,7 +39,6 @@ router.delete("/users/:id", deleteUser);
 
 // Password management
 router.put("/users/:id/password", updatePassword);
-
 
 // Role management - Only volunteers can manage roles
 router.post("/users/:id/roles", authorize("VOLUNTEER"), addRole);

@@ -6,6 +6,8 @@ import { smsRoute } from "./src/routes/smsRoute";
 import { otpRoute } from "./src/routes/otpRoute";
 import { userRoute } from "./src/routes/userRoute";
 import { onboardingRoute } from "./src/routes/onboardingRoute";
+import { codeWordRoute } from "./src/routes/codeWordRoute";
+import { trustedContactRoute } from "./src/routes/trustedContactRoute";
 
 // Load environment variables
 dotenv.config();
@@ -38,6 +40,8 @@ app.use("/api/sms", smsRoute);
 app.use("/api/otp", otpRoute);
 app.use("/api/users", userRoute);
 app.use("/api/onboarding", onboardingRoute);
+app.use("/api/codeword", codeWordRoute);
+app.use("/api/trusted-contacts", trustedContactRoute);
 
 // 404 handler
 app.use((req, res) => {

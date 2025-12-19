@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import userService from "../services/UserService";
 import { generateToken } from "../middlewares/auth";
+import otpService from "../services/OTPService";
 
 /**
  * Sign up a new user
@@ -213,7 +214,6 @@ export const updatePassword = async (req: Request, res: Response) => {
     });
   }
 };
-
 
 /**
  * Add role to user
@@ -467,6 +467,120 @@ export const checkUserExists = async (req: Request, res: Response) => {
     });
   } catch (error: unknown) {
     console.error("❌ Check User Exists Error:", (error as Error).message);
+    return res.status(500).json({
+      success: false,
+      message: (error as Error).message,
+    });
+  }
+};
+
+/**
+ * Send Email OTP for verification
+ */
+export const sendEmailOTP = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id; // From auth middleware
+    const { email, type } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    if (!type) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP type is required",
+      });
+    }
+
+    // Valid OTP types
+    const validTypes = [
+      "EMAIL_VERIFICATION",
+      "AADHAAR",
+      "SIGNUP",
+      "MOBILE_VERIFICATION",
+      "PASSWORD_RESET",
+    ];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP type",
+      });
+    }
+
+    const result = await otpService.createOTP(
+      userId!,
+      type,
+      type.replace(/_/g, " ").toLowerCase(),
+      { email }
+    );
+
+    return res.status(200).json({
+      success: result.success,
+      message: result.message,
+    });
+  } catch (error: unknown) {
+    console.error("❌ Send Email OTP Error:", (error as Error).message);
+    return res.status(500).json({
+      success: false,
+      message: (error as Error).message,
+    });
+  }
+};
+
+/**
+ * Verify Email OTP
+ */
+export const verifyEmailOTP = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id; // From auth middleware
+    const { otp, type } = req.body;
+
+    if (!otp) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP is required",
+      });
+    }
+
+    if (!type) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP type is required",
+      });
+    }
+
+    // Valid OTP types
+    const validTypes = [
+      "EMAIL_VERIFICATION",
+      "AADHAAR",
+      "SIGNUP",
+      "MOBILE_VERIFICATION",
+      "PASSWORD_RESET",
+    ];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP type",
+      });
+    }
+
+    const result = await otpService.verifyOTP(userId!, type, otp);
+
+    // If EMAIL_VERIFICATION, update user's email verification status
+    if (type === "EMAIL_VERIFICATION" && result.success) {
+      await userService.updateUser(userId!, { isEmailVerified: true });
+    }
+
+    return res.status(200).json({
+      success: result.success,
+      message: result.message,
+    });
+  } catch (error: unknown) {
+    console.error("❌ Verify Email OTP Error:", (error as Error).message);
     return res.status(500).json({
       success: false,
       message: (error as Error).message,

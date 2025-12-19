@@ -2,7 +2,9 @@
 // @ts-nocheck
 import sendSMS from "@/api/smsApi";
 import { useLocationStore } from "@/store/useLocationStore";
+import { useAuthStore } from "../../store/useAuthStore";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Platform,
@@ -18,6 +20,9 @@ import {
 export default function HomeScreen() {
   const [backgroundListen, setBackgroundListen] = useState(false);
   const location = useLocationStore((state) => state.location);
+  const { user, trustedContacts } = useAuthStore();
+  const router = useRouter();
+
   const handlePress = async () => {
     try {
       // const isAvailable = await checkSMSServiceAvailibity(); // it is for message using message app. We do not need it anymore.
@@ -56,6 +61,28 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Trusted Contacts Warning Banner */}
+      {(!user?.setTrustedContacts ||
+        !trustedContacts ||
+        trustedContacts.length === 0) && (
+        <TouchableOpacity
+          style={styles.warningBanner}
+          onPress={() => router.push("/(tabs)/contact")}
+          activeOpacity={0.8}
+        >
+          <View style={styles.warningIconBox}>
+            <Ionicons name="warning" size={24} color="#dc2626" />
+          </View>
+          <View style={styles.warningContent}>
+            <Text style={styles.warningTitle}>No Trusted Contacts Set</Text>
+            <Text style={styles.warningMessage}>
+              Add at least one trusted contact for emergency situations
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color="#dc2626" />
+        </TouchableOpacity>
+      )}
 
       <ScrollView
         style={styles.mainScroll}
@@ -214,6 +241,46 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  warningBanner: {
+    backgroundColor: "#fef2f2",
+    borderLeftWidth: 4,
+    borderLeftColor: "#dc2626",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  warningIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#fee2e2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  warningContent: {
+    flex: 1,
+  },
+  warningTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#991b1b",
+    marginBottom: 2,
+  },
+  warningMessage: {
+    fontSize: 12,
+    color: "#dc2626",
+    lineHeight: 16,
   },
   mainScroll: {
     flex: 1,

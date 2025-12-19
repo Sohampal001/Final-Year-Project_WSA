@@ -11,6 +11,10 @@ export interface IUser extends Document {
   isMobileVerified: boolean;
   setTrustedContacts: boolean;
   isGuardianVerified: boolean;
+  isAadhaarVerified: boolean;
+  aadhaarNumber?: string;
+  homeAddress?: string;
+  workAddress?: string;
   status: "ACTIVE" | "SUSPENDED" | "DELETED";
   lastLoginAt?: Date;
 }
@@ -34,6 +38,11 @@ const UserSchema = new Schema<IUser>(
     isMobileVerified: { type: Boolean, default: false },
     setTrustedContacts: { type: Boolean, default: false },
     isGuardianVerified: { type: Boolean, default: false },
+    isAadhaarVerified: { type: Boolean, default: false },
+
+    aadhaarNumber: { type: String },
+    homeAddress: { type: String },
+    workAddress: { type: String },
 
     status: {
       type: String,
