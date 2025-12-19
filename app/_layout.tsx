@@ -1,7 +1,7 @@
 // app/_layout.tsx
 // @ts-nocheck
-import LocationProvider from "@/providers/LocationProvider";
-import { useLocationStore } from "@/store/useLocationStore";
+import LocationProvider from "../providers/LocationProvider";
+import { useLocationStore } from "../store/useLocationStore";
 import { Stack } from "expo-router";
 import "expo-router/entry";
 import { useEffect } from "react";
