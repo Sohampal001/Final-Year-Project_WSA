@@ -9,6 +9,7 @@ declare global {
     interface Request {
       user?: {
         id: string;
+        userId: string;
         email: string;
         mobile: string;
         roles: ("USER" | "GUARDIAN" | "VOLUNTEER")[];
@@ -85,6 +86,7 @@ export const authenticate = async (
     // Attach user to request
     req.user = {
       id: user._id.toString(),
+      userId: user._id.toString(),
       email: user.email!,
       mobile: user.mobile!,
       roles: user.roles,
@@ -202,6 +204,7 @@ export const optionalAuth = async (
     if (user && user.status === "ACTIVE") {
       req.user = {
         id: user._id.toString(),
+        userId: user._id.toString(),
         email: user.email!,
         mobile: user.mobile!,
         roles: user.roles,

@@ -81,7 +81,7 @@ export default function SignUpScreen() {
 
   // Use 10.0.2.2 for Android emulator (localhost maps to the emulator, not host machine)
   // For physical device, replace with your machine's IP address (e.g., 'http://192.168.1.x:3000/api')
-  const API_BASE_URL = "https://bntjhcxw-3000.inc1.devtunnels.ms/api";
+  const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL!;
 
   const next = () => setStep(step + 1);
   const back = () => setStep(step - 1);
@@ -115,14 +115,13 @@ export default function SignUpScreen() {
         return;
       }
 
-      // Store token and user ID in global state
+      // Store token and user ID temporarily (don't save to auth store yet)
       const token = signupData.token;
       const userIdFromResponse = signupData.data._id;
       setAuthToken(token);
       setUserId(userIdFromResponse);
 
-      // Save to auth store
-      await setAuth(signupData.data, token);
+      // Note: We'll save to auth store only after completing all signup steps
 
       // Send OTP to email
       const otpResponse = await fetch(`${API_BASE_URL}/users/send-email-otp`, {
@@ -392,6 +391,25 @@ export default function SignUpScreen() {
       const data = await response.json();
 
       if (data.success) {
+        // Fetch updated user data and save auth state
+        const userResponse = await fetch(
+          `${API_BASE_URL}/users/users/${userId}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+          }
+        );
+
+        const userData = await userResponse.json();
+
+        if (userData.success) {
+          // Now save to auth store after completing all signup steps
+          await setAuth(userData.data, authToken);
+        }
+
         Alert.alert("Success", "Signup completed successfully!", [
           {
             text: "OK",

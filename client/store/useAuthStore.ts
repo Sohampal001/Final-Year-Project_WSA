@@ -46,7 +46,7 @@ interface AuthState {
   fetchTrustedContacts: (forceRefresh?: boolean) => Promise<void>;
 }
 
-const API_BASE_URL = "https://bntjhcxw-3000.inc1.devtunnels.ms/api";
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL!;
 
 // Create axios instance with base configuration
 const apiClient = axios.create({

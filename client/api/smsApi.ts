@@ -1,22 +1,47 @@
-import axios from "axios";
+import axios, { isAxiosError } from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Location } from "../store/useLocationStore";
-const sendSMS = async (location: Location, numbersArray: string[]) => {
+
+const sendSMS = async (location: Location, numbersArray?: string[]) => {
   try {
-    console.log(location + " " + location.lat + " " + location.lon);
+    console.log("📱 Sending SOS SMS...");
+    console.log("📍 Location:", location.lat, location.lon);
+    console.log("📞 Numbers:", numbersArray);
+
+    const token = await AsyncStorage.getItem("authToken");
+    if (!token) {
+      throw new Error("Not authenticated. Please login again.");
+    }
 
     const GMapLink = `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lon}`;
+
     const response = await axios.post(
-      `https://bntjhcxw-3000.inc1.devtunnels.ms/api/send-sms`,
+      `${process.env.EXPO_PUBLIC_API_URL!}/send-sms`,
       {
         location: GMapLink,
-        numbersArray,
+        latitude: location.lat,
+        longitude: location.lon,
+        numbersArray: numbersArray || [], // Send empty array if no numbers, backend will fetch from DB
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       }
     );
-    console.log(response.data);
+
+    console.log("✅ SOS SMS Response:", response.data);
     return response.data;
   } catch (error) {
-    console.error("Error fetching data:", (error as Error).message);
-    return error;
+    if (isAxiosError(error)) {
+      console.error("❌ SOS SMS Error:", error.response?.data || error.message);
+      throw new Error(
+        error.response?.data?.message || "Failed to send emergency alerts"
+      );
+    }
+    console.error("❌ Error sending SOS:", (error as Error).message);
+    throw error;
   }
 };
 

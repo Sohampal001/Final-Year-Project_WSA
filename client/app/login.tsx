@@ -24,7 +24,8 @@ export default function LoginScreen() {
   const router = useRouter();
   const { setAuth, isAuthenticated, fetchTrustedContacts } = useAuthStore();
 
-  const API_BASE_URL = "https://bntjhcxw-3000.inc1.devtunnels.ms/api";
+  const API_BASE_URL =
+    process.env.EXPO_PUBLIC_API_URL!
 
   // Redirect if already authenticated
   useEffect(() => {

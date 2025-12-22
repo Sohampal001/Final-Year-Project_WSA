@@ -14,14 +14,21 @@ class FAST2SMS {
     this.FAST2SMS_API_KEY = process.env.FAST2SMS_API_KEY!;
     this.FAST2SMS_API_ROUTE = "https://www.fast2sms.com/dev/bulkV2";
   }
-  async sendMessage(location: string, numbersArray: [number]) {
+  async sendMessage(message: string, numbersArray: string[]) {
     try {
       const config = {
         route: "q",
-        message: `Surya is in trouble, here is my location : ${location}`,
+        message: message,
         flash: "0",
-        numbers: numbersArray,
+        numbers: numbersArray.join(","), // Convert array to comma-separated string
       };
+
+      console.log("📤 Sending SMS with config:", {
+        route: config.route,
+        messageLength: message.length,
+        recipientCount: numbersArray.length,
+      });
+
       const response = await axios.post(this.FAST2SMS_API_ROUTE, config, {
         headers: {
           authorization: this.FAST2SMS_API_KEY,
@@ -29,10 +36,17 @@ class FAST2SMS {
         },
       });
 
-      console.log("✅ SMS Sent:", response);
-      return { data: response.data, sent: true };
+      console.log("✅ SMS Sent Successfully:", response.data);
+      return {
+        ...response.data,
+        sent: true,
+        request_id: response.data.request_id,
+      };
     } catch (error: unknown) {
-      throw new Error(`${(error as any)?.response?.data?.message}`);
+      console.error("❌ SMS Service Error:", (error as any)?.response?.data);
+      throw new Error(
+        `${(error as any)?.response?.data?.message || "Failed to send SMS"}`
+      );
     }
   }
 }

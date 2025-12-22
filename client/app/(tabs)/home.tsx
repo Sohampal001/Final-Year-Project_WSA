@@ -1,11 +1,17 @@
 // app/(tabs)/home.tsx
 // @ts-nocheck
 import sendSMS from "@/api/smsApi";
+import {
+  getNearbyPlacesByCategory,
+  getNearbyPlaces,
+  NearbyPlace,
+  formatDistance,
+} from "@/api/nearbyPlacesApi";
 import { useLocationStore } from "@/store/useLocationStore";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Platform,
   SafeAreaView,
@@ -15,27 +21,169 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Modal,
+  Linking,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 
 export default function HomeScreen() {
   const [backgroundListen, setBackgroundListen] = useState(false);
+  const [selectedPlaceType, setSelectedPlaceType] = useState<string | null>(
+    null
+  );
+  const [nearbyPlaces, setNearbyPlaces] = useState<NearbyPlace[]>([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [sosLoading, setSosLoading] = useState(false);
   const location = useLocationStore((state) => state.location);
   const { user, trustedContacts } = useAuthStore();
   const router = useRouter();
 
+  // Check if user has trusted contacts
+  const hasTrustedContacts = trustedContacts && trustedContacts.length > 0;
+
   const handlePress = async () => {
     try {
-      // const isAvailable = await checkSMSServiceAvailibity(); // it is for message using message app. We do not need it anymore.
-      // if (isAvailable) {
-      const response = await sendSMS(location, ["8274018638"]);
-      console.log(response.message);
-      // } else {
-      //   throw new Error("SMS Service is not available");
-      // }
+      // Check if location is available
+      if (!location?.lat || !location?.lon) {
+        Alert.alert(
+          "Location Required",
+          "Please enable location services to send emergency alerts."
+        );
+        return;
+      }
+
+      // Check if user has trusted contacts
+      if (!hasTrustedContacts) {
+        Alert.alert(
+          "No Trusted Contacts",
+          "Please add at least one trusted contact before sending emergency alerts.",
+          [
+            {
+              text: "Add Contacts",
+              onPress: () => router.push("/(tabs)/contact"),
+            },
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+          ]
+        );
+        return;
+      }
+
+      // Confirm SOS action
+      Alert.alert(
+        "🚨 Send Emergency Alert?",
+        "This will send SMS alerts to all your trusted contacts with your current location.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Send Alert",
+            style: "destructive",
+            onPress: async () => {
+              setSosLoading(true);
+              try {
+                // Extract phone numbers from trusted contacts
+                const phoneNumbers = trustedContacts.map(
+                  (contact) => contact.mobile
+                );
+
+                console.log("🚨 Sending SOS to contacts:", phoneNumbers);
+
+                const response = await sendSMS(location, phoneNumbers);
+
+                if (response.success) {
+                  Alert.alert(
+                    "✅ Alert Sent",
+                    `Emergency alerts sent to ${
+                      response.data?.smsCount || phoneNumbers.length
+                    } contacts${
+                      response.data?.emailSent ? " and guardian email" : ""
+                    }.`,
+                    [{ text: "OK" }]
+                  );
+                } else {
+                  throw new Error(response.message || "Failed to send alerts");
+                }
+              } catch (error) {
+                console.error("❌ SOS Error:", error);
+                Alert.alert(
+                  "Error",
+                  error.message ||
+                    "Failed to send emergency alerts. Please try again."
+                );
+              } finally {
+                setSosLoading(false);
+              }
+            },
+          },
+        ]
+      );
     } catch (error) {
-      console.error("Error sending SMS:", error);
+      console.error("Error in handlePress:", error);
+      Alert.alert("Error", "An unexpected error occurred");
     }
-    // console.log("Pressed");
+  };
+
+  const handleLocationCardPress = async (type: string) => {
+    if (!location?.latitude || !location?.longitude) {
+      Alert.alert("Error", "Location not available");
+      return;
+    }
+
+    setSelectedPlaceType(type);
+    setLoading(true);
+    setModalVisible(true);
+
+    try {
+      const typeMap: {
+        [key: string]: "police" | "hospital" | "pharmacy" | "bus_station";
+      } = {
+        "Police Station": "police",
+        Hospital: "hospital",
+        Pharmacy: "pharmacy",
+        "Bus Stop": "bus_station",
+      };
+
+      const places = await getNearbyPlaces(
+        location.latitude,
+        location.longitude,
+        typeMap[type],
+        5000,
+        10
+      );
+      setNearbyPlaces(places);
+    } catch (error: any) {
+      console.error("Error fetching nearby places:", error);
+      Alert.alert("Error", error.message || "Failed to fetch nearby places");
+      setModalVisible(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCall = (phoneNumber: string) => {
+    if (phoneNumber) {
+      Linking.openURL(`tel:${phoneNumber}`);
+    } else {
+      Alert.alert("Error", "Phone number not available");
+    }
+  };
+
+  const handleDirections = (lat: number, lng: number) => {
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    Linking.openURL(url);
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    setNearbyPlaces([]);
+    setSelectedPlaceType(null);
   };
 
   return (
@@ -91,20 +239,47 @@ export default function HomeScreen() {
         {/* SOS */}
         <View style={styles.centerSection}>
           <View style={{ alignItems: "center", justifyContent: "center" }}>
-            <View style={styles.sosPulse} />
-            <TouchableOpacity style={styles.sosButton} onPress={handlePress}>
-              <MaterialCommunityIcons
-                name="alert-circle-outline"
-                size={72}
-                color="#ffffff"
-              />
-              <Text style={styles.sosText}>SOS</Text>
-              <View style={styles.sosPhoneBadge}>
-                <Ionicons name="call-outline" size={26} color="#dc2626" />
-              </View>
+            {hasTrustedContacts && <View style={styles.sosPulse} />}
+            <TouchableOpacity
+              style={[
+                styles.sosButton,
+                !hasTrustedContacts && styles.sosButtonDisabled,
+              ]}
+              onPress={handlePress}
+              disabled={sosLoading}
+              activeOpacity={hasTrustedContacts ? 0.7 : 0.95}
+            >
+              {sosLoading ? (
+                <ActivityIndicator size="large" color="#ffffff" />
+              ) : (
+                <>
+                  <MaterialCommunityIcons
+                    name="alert-circle-outline"
+                    size={72}
+                    color="#ffffff"
+                  />
+                  <Text style={styles.sosText}>SOS</Text>
+                  <View
+                    style={[
+                      styles.sosPhoneBadge,
+                      !hasTrustedContacts && styles.sosPhoneBadgeDisabled,
+                    ]}
+                  >
+                    <Ionicons
+                      name="call-outline"
+                      size={26}
+                      color={hasTrustedContacts ? "#dc2626" : "#9ca3af"}
+                    />
+                  </View>
+                </>
+              )}
             </TouchableOpacity>
           </View>
-          <Text style={styles.sosHint}>Press and hold for emergency</Text>
+          <Text style={styles.sosHint}>
+            {hasTrustedContacts
+              ? "Press for emergency"
+              : "Add trusted contacts to activate"}
+          </Text>
         </View>
 
         {/* Background Listen */}
@@ -181,6 +356,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={idx}
                 style={[styles.locationCard, { backgroundColor: item.colorBg }]}
+                onPress={() => handleLocationCardPress(item.label)}
               >
                 <View
                   style={[
@@ -209,11 +385,15 @@ export default function HomeScreen() {
 
           <View style={styles.emergencyGrid}>
             {[
-              { label: "Women Help", icon: "shield-woman", number: "1091" },
+              { label: "Women Help", icon: "shield-account", number: "1091" },
               { label: "Ambulance", icon: "ambulance", number: "102" },
               { label: "Fire Brigade", icon: "fire-truck", number: "101" },
             ].map((item, idx) => (
-              <TouchableOpacity key={idx} style={styles.emergencyCard}>
+              <TouchableOpacity
+                key={idx}
+                style={styles.emergencyCard}
+                onPress={() => handleCall(item.number)}
+              >
                 <View style={styles.emergencyIconBox}>
                   <MaterialCommunityIcons
                     name={item.icon}
@@ -228,6 +408,112 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Modal for nearby places */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={closeModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Nearby {selectedPlaceType}</Text>
+              <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#111827" />
+              </TouchableOpacity>
+            </View>
+
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#0f766e" />
+                <Text style={styles.loadingText}>Finding nearby places...</Text>
+              </View>
+            ) : nearbyPlaces.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="location-outline" size={48} color="#9ca3af" />
+                <Text style={styles.emptyText}>No places found nearby</Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.placesList}>
+                {nearbyPlaces.map((place, idx) => (
+                  <View key={place.place_id || idx} style={styles.placeCard}>
+                    <View style={styles.placeHeader}>
+                      <View style={styles.placeInfo}>
+                        <Text style={styles.placeName}>{place.name}</Text>
+                        {place.distance !== undefined && (
+                          <View style={styles.distanceBadge}>
+                            <Ionicons
+                              name="location"
+                              size={12}
+                              color="#6b7280"
+                            />
+                            <Text style={styles.distanceText}>
+                              {formatDistance(place.distance)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      {place.rating && (
+                        <View style={styles.ratingBadge}>
+                          <Ionicons name="star" size={14} color="#f59e0b" />
+                          <Text style={styles.ratingText}>{place.rating}</Text>
+                        </View>
+                      )}
+                    </View>
+
+                    <Text style={styles.placeAddress}>{place.address}</Text>
+
+                    {place.isOpen !== undefined && (
+                      <Text
+                        style={[
+                          styles.openStatus,
+                          { color: place.isOpen ? "#059669" : "#dc2626" },
+                        ]}
+                      >
+                        {place.isOpen ? "Open Now" : "Closed"}
+                      </Text>
+                    )}
+
+                    <View style={styles.placeActions}>
+                      <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() =>
+                          handleDirections(
+                            place.location.lat,
+                            place.location.lng
+                          )
+                        }
+                      >
+                        <Ionicons name="navigate" size={20} color="#3b82f6" />
+                        <Text style={styles.actionButtonText}>Directions</Text>
+                      </TouchableOpacity>
+
+                      {place.contactNumber && (
+                        <TouchableOpacity
+                          style={[styles.actionButton, styles.callButton]}
+                          onPress={() => handleCall(place.contactNumber!)}
+                        >
+                          <Ionicons name="call" size={20} color="#10b981" />
+                          <Text
+                            style={[
+                              styles.actionButtonText,
+                              { color: "#10b981" },
+                            ]}
+                          >
+                            Call
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -352,6 +638,11 @@ const styles = StyleSheet.create({
     borderColor: "#ffffff",
     elevation: 10,
   },
+  sosButtonDisabled: {
+    backgroundColor: "#d1d5db",
+    opacity: 0.6,
+    elevation: 4,
+  },
   sosText: {
     fontSize: 34,
     color: "#ffffff",
@@ -369,6 +660,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     elevation: 6,
+  },
+  sosPhoneBadgeDisabled: {
+    backgroundColor: "#f3f4f6",
+    elevation: 2,
   },
   sosHint: {
     marginTop: 10,
@@ -514,5 +809,148 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#b91c1c",
     marginTop: 2,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#ffffff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "80%",
+    paddingBottom: Platform.OS === "ios" ? 20 : 0,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#6b7280",
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#6b7280",
+  },
+  placesList: {
+    flex: 1,
+    padding: 16,
+  },
+  placeCard: {
+    backgroundColor: "#f9fafb",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  placeHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  placeInfo: {
+    flex: 1,
+    marginRight: 8,
+  },
+  placeName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 4,
+  },
+  distanceBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  distanceText: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginLeft: 4,
+  },
+  ratingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fffbeb",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  ratingText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#f59e0b",
+    marginLeft: 4,
+  },
+  placeAddress: {
+    fontSize: 13,
+    color: "#6b7280",
+    marginBottom: 8,
+    lineHeight: 18,
+  },
+  openStatus: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  placeActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#eff6ff",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+  callButton: {
+    backgroundColor: "#dcfce7",
+    borderColor: "#86efac",
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#3b82f6",
+    marginLeft: 6,
   },
 });

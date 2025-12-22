@@ -23,7 +23,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import axios from "axios";
 import { useAuthStore } from "../../store/useAuthStore";
 
-const API_BASE_URL = "https://bntjhcxw-3000.inc1.devtunnels.ms/api";
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL!
 
 const RELATIONSHIPS = [
   { label: "Select Relationship", value: "" },

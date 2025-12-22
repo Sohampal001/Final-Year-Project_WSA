@@ -8,6 +8,8 @@ import { userRoute } from "./src/routes/userRoute";
 import { onboardingRoute } from "./src/routes/onboardingRoute";
 import { codeWordRoute } from "./src/routes/codeWordRoute";
 import { trustedContactRoute } from "./src/routes/trustedContactRoute";
+import { locationRoute } from "./src/routes/locationRoute";
+import nearbyPlacesRoute from "./src/routes/nearbyPlacesRoute";
 
 // Load environment variables
 dotenv.config();
@@ -36,12 +38,14 @@ app.get("/health", (req, res) => {
 });
 
 // API Routes
-app.use("/api/sms", smsRoute);
+app.use("/api", smsRoute);
 app.use("/api/otp", otpRoute);
 app.use("/api/users", userRoute);
 app.use("/api/onboarding", onboardingRoute);
 app.use("/api/codeword", codeWordRoute);
 app.use("/api/trusted-contacts", trustedContactRoute);
+app.use("/api/location", locationRoute);
+app.use("/api/nearby-places", nearbyPlacesRoute);
 
 // 404 handler
 app.use((req, res) => {
