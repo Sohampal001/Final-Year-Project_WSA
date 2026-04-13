@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "Aegis",
+    "scheme": "aegis",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
@@ -16,7 +16,9 @@
         "UIBackgroundModes": [
           "location",
           "fetch"
-        ]
+        ],
+        "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone."
       }
     },
     "android": {
@@ -32,12 +34,14 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_LOCATION"
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+        "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.suraksha.app",
+      "package": "com.aegis.app",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyCxJSb_tU0AFSFHCPkBhPNceVUNFjQecR0"
+          "apiKey": "api_key"
         }
       }
     },
@@ -74,8 +78,7 @@
         "expo-maps",
         {
           "requestLocationPermission": true,
-          "locationPermission": "Allow Aegis to access your location for safety features and emergency alerts.",
-          "googleMapsApiKey": "AIzaSyCxJSb_tU0AFSFHCPkBhPNceVUNFjQecR0"
+          "locationPermission": "Allow Aegis to access your location for safety features and emergency alerts."
         }
       ],
       "expo-speech-recognition"
@@ -87,7 +90,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "97080afc-1087-4cc8-9a60-6eeb4f0de77f"
+        "projectId": "f3f1f7c1-c713-4739-a1d3-4822d0a28935"
       }
     }
   }
