@@ -52,12 +52,20 @@ const startAndroidForegroundService = async () => {
             const state = await ExpoSpeechRecognitionModule.getStateAsync();
             if (state === "inactive") {
               console.log(
-                "[Foreground Recovery] Speech engine secretly stopped. Forcing it back on...",
+                "🎤 [Health Check] Speech engine stopped. Restarting...",
               );
               await startRecording();
             }
           } catch (e) {
-            console.log("Health check failed", e);
+            console.log("🔧 [Health Check] Error checking state:", e);
+            // Try to restart anyway
+            setTimeout(() => {
+              if (isRecognitionActive) {
+                startRecording().catch((e) =>
+                  console.log("Health check restart failed:", e),
+                );
+              }
+            }, 2000);
           }
         }
       },
@@ -65,7 +73,7 @@ const startAndroidForegroundService = async () => {
         delay: 5000,
         onLoop: true,
         taskId: "Aegis_background_audio",
-        onError: (e: any) => console.log(`Error logging:`, e),
+        onError: (e: any) => console.log("🔧 [Health Check] Error logging:", e),
       },
     );
 
@@ -102,18 +110,23 @@ export const stopBackgroundListener = () => {
       isForegroundServiceActive = false;
     }
   }
+  // Also reset the foreground listener if it's still running
+  if (isRecognitionActive) {
+    stopForegroundListener();
+  }
 };
 
 const startRecording = async () => {
   if (!isRecognitionActive) return;
 
   try {
+    // Only request microphone permissions if we're actually in background listening mode
+    // This prevents unnecessary permission prompts in normal operation
     const { granted } =
       await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-    // Assuming notifications permission is checked elsewhere, but ensure it.
 
     if (!granted) {
-      console.warn("Microphone permission not granted!");
+      console.warn("⚠️ Microphone permission not granted!");
       // Show notification to user
       triggerNotification(
         "Permissions Missing",
@@ -123,6 +136,7 @@ const startRecording = async () => {
       stopBackgroundListener();
       return;
     }
+    console.log("✅ Microphone permission granted");
 
     console.log("Starting voice recognition engine...");
 

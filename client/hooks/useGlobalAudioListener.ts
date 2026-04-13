@@ -176,12 +176,32 @@ export const useGlobalAudioListener = (triggerSos: () => Promise<void>) => {
           "We couldn't instantly send the alert. It is queued locally and will retry offline.",
         );
       } finally {
+        // Reset state and cooldown for next trigger
         setTimeout(() => {
-          ExpoSpeechRecognitionModule.abort();
+          console.log("🔄 Resetting SOS state for next trigger...");
           isProcessingSos.current = false;
           matchTimestamps.current = [];
           lastMatchedSignature.current = "";
           lastMatchedAt.current = 0;
+          knownCodewordPhrase.current = null; // Reset phrase cache to allow re-discovery
+
+          // Restart speech recognition if still active
+          console.log("🎤 Restarting speech recognition...");
+          try {
+            ExpoSpeechRecognitionModule.start(getSpeechRecognitionOptions());
+          } catch (e: any) {
+            console.error("Failed to restart recognition:", e);
+            // Retry after a delay
+            setTimeout(() => {
+              try {
+                ExpoSpeechRecognitionModule.start(
+                  getSpeechRecognitionOptions(),
+                );
+              } catch (err: any) {
+                console.error("Final restart attempt failed:", err);
+              }
+            }, 1000);
+          }
         }, 5000);
       }
     }
@@ -189,21 +209,48 @@ export const useGlobalAudioListener = (triggerSos: () => Promise<void>) => {
 
   useSpeechRecognitionEvent("end", () => {
     // Keep recognition alive while app listener is active.
+    console.log(
+      `[AudioListener] End event fired. isProcessingSos=${isProcessingSos.current}`,
+    );
+
     if (!isProcessingSos.current) {
       // Small timeout to prevent aggressive loop
       setTimeout(() => {
-        ExpoSpeechRecognitionModule.start(getSpeechRecognitionOptions());
+        console.log(
+          "[AudioListener] Restarting recognition after end event...",
+        );
+        try {
+          ExpoSpeechRecognitionModule.start(getSpeechRecognitionOptions());
+        } catch (e: any) {
+          console.error("[AudioListener] Failed to restart after end:", e);
+        }
       }, 500);
+    } else {
+      console.log(
+        "[AudioListener] SOS processing active - will restart after cooldown",
+      );
     }
   });
 
   useSpeechRecognitionEvent("error", (event: any) => {
-    console.log("Speech Error:", event.error);
-    // 7 is match error (no speech) - ignore usually. Restart listening if needed.
+    console.log("[AudioListener] Speech Error:", event.error);
+    // 7 is match error (no speech) - common and can be ignored
+    // Restart listening anyway to keep the engine alive
     if (!isProcessingSos.current) {
       setTimeout(() => {
-        ExpoSpeechRecognitionModule.start(getSpeechRecognitionOptions());
+        console.log(
+          "[AudioListener] Restarting recognition after error event...",
+        );
+        try {
+          ExpoSpeechRecognitionModule.start(getSpeechRecognitionOptions());
+        } catch (e: any) {
+          console.error("[AudioListener] Failed to restart after error:", e);
+        }
       }, 1000);
+    } else {
+      console.log(
+        "[AudioListener] SOS processing active - skipping restart on error",
+      );
     }
   });
 };

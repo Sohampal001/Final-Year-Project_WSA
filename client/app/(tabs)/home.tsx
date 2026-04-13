@@ -1,32 +1,75 @@
 // app/(tabs)/home.tsx
 // @ts-nocheck
-import {
-  getNearbyPlaces,
-  NearbyPlace,
-  formatDistance,
-} from "@/api/nearbyPlacesApi";
 import { useLocationStore } from "@/store/useLocationStore";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useSafetyStore } from "../../store/useSafetyStore";
+import { useHomeBootstrapStore } from "../../store/useHomeBootstrapStore";
 import { triggerGlobalSos } from "../../services/sosOrchestrator";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import { AppleMaps, GoogleMaps } from "expo-maps";
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Platform,
   SafeAreaView,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  Modal,
-  Linking,
-  ActivityIndicator,
   Alert,
   Image,
+  ActivityIndicator,
+  Linking,
+  ScrollView,
+  RefreshControl,
 } from "react-native";
+
+const CATEGORY_META = {
+  policeStations: {
+    title: "Police Station",
+    icon: "shield-home",
+    color: "#2563eb",
+    markerImage: require("../../assets/images/markers/police-marker.png"),
+  },
+  hospitals: {
+    title: "Hospital",
+    icon: "hospital-building",
+    color: "#dc2626",
+    markerImage: require("../../assets/images/markers/hospital-marker.png"),
+  },
+  pharmacies: {
+    title: "Pharmacy",
+    icon: "medical-bag",
+    color: "#16a34a",
+    markerImage: require("../../assets/images/markers/pharmacy-marker.png"),
+  },
+  busStops: {
+    title: "Bus Stop",
+    icon: "bus-stop",
+    color: "#ea580c",
+    markerImage: require("../../assets/images/markers/bus-marker.png"),
+  },
+} as const;
+
+const DEFAULT_DELHI_LAT = 28.6139;
+const DEFAULT_DELHI_LNG = 77.209;
+
+type CategoryKey = keyof typeof CATEGORY_META;
+type FilterKey = "all" | CategoryKey;
+
+function getShortLocationLabel(user: any): string {
+  const sourceAddress = user?.homeAddress || user?.workAddress || "";
+  if (!sourceAddress) return "Location unavailable";
+
+  const parts = sourceAddress.split(",").map((part: string) => part.trim());
+  if (parts.length >= 2) {
+    return `${parts[0]}, ${parts[1]}`;
+  }
+
+  return parts[0] || "Location unavailable";
+}
 
 export default function HomeScreen() {
   const isBackgroundListening = useSafetyStore(
@@ -36,23 +79,25 @@ export default function HomeScreen() {
     (state) => state.toggleBackgroundListening,
   );
 
-  const [selectedPlaceType, setSelectedPlaceType] = useState<string | null>(
-    null,
-  );
-  const [nearbyPlaces, setNearbyPlaces] = useState<NearbyPlace[]>([]);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [sosLoading, setSosLoading] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<FilterKey>("all");
+  const [refreshing, setRefreshing] = useState(false);
+
   const location = useLocationStore((state) => state.location);
   const { user, trustedContacts } = useAuthStore();
+  const nearbyUsers = useHomeBootstrapStore((state) => state.nearbyUsers);
+  const nearbyLocations = useHomeBootstrapStore((state) => state.nearbyLocations);
+  const bootstrapHomeData = useHomeBootstrapStore((state) => state.bootstrapHomeData);
   const router = useRouter();
+  const mapRef = useRef<any>(null);
 
-  // Check if user has trusted contacts
   const hasTrustedContacts = trustedContacts && trustedContacts.length > 0;
+
+  const safeCurrentLat = location?.lat || DEFAULT_DELHI_LAT;
+  const safeCurrentLng = location?.lon || DEFAULT_DELHI_LNG;
 
   const handlePress = async () => {
     try {
-      // Check if location is available
       if (!location?.lat || !location?.lon) {
         Alert.alert(
           "Location Required",
@@ -61,7 +106,6 @@ export default function HomeScreen() {
         return;
       }
 
-      // Check if user has trusted contacts
       if (!hasTrustedContacts) {
         Alert.alert(
           "No Trusted Contacts",
@@ -80,10 +124,9 @@ export default function HomeScreen() {
         return;
       }
 
-      // Confirm SOS action
       Alert.alert(
-        "🚨 Send Emergency Alert?",
-        "This will send SMS alerts to all your trusted contacts with your current location.",
+        "Emergency Alert",
+        "This will send SMS alerts to all trusted contacts with your location.",
         [
           {
             text: "Cancel",
@@ -95,20 +138,16 @@ export default function HomeScreen() {
             onPress: async () => {
               setSosLoading(true);
               try {
-                // Trigger the generic offline SOS logic
                 await triggerGlobalSos();
-
                 Alert.alert(
-                  "✅ Alert Sent",
-                  "Emergency alerts successfully delivered/queued to contacts.",
-                  [{ text: "OK" }],
+                  "Alert Sent",
+                  "Emergency alerts delivered or queued successfully.",
                 );
               } catch (error: any) {
-                console.error("❌ SOS Error:", error);
+                console.error("SOS Error:", error);
                 Alert.alert(
                   "Error",
-                  error.message ||
-                    "Failed to send emergency alerts. Please try again.",
+                  error.message || "Failed to send emergency alerts.",
                 );
               } finally {
                 setSosLoading(false);
@@ -123,65 +162,128 @@ export default function HomeScreen() {
     }
   };
 
-  const handleLocationCardPress = async (type: string) => {
-    if (!location?.latitude || !location?.longitude) {
-      Alert.alert("Error", "Location not available");
-      return;
-    }
-
-    setSelectedPlaceType(type);
-    setLoading(true);
-    setModalVisible(true);
-
-    try {
-      const typeMap: {
-        [key: string]: "police" | "hospital" | "pharmacy" | "bus_station";
-      } = {
-        "Police Station": "police",
-        Hospital: "hospital",
-        Pharmacy: "pharmacy",
-        "Bus Stop": "bus_station",
-      };
-
-      const places = await getNearbyPlaces(
-        location.latitude,
-        location.longitude,
-        typeMap[type],
-        5000,
-        10,
-      );
-      setNearbyPlaces(places);
-    } catch (error: any) {
-      console.error("Error fetching nearby places:", error);
-      Alert.alert("Error", error.message || "Failed to fetch nearby places");
-      setModalVisible(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleCall = (phoneNumber: string) => {
     if (phoneNumber) {
       Linking.openURL(`tel:${phoneNumber}`);
-    } else {
-      Alert.alert("Error", "Phone number not available");
+      return;
+    }
+    Alert.alert("Error", "Phone number not available");
+  };
+
+  const locationLabel = getShortLocationLabel(user);
+  const nearbyUserCount = nearbyUsers?.length || 0;
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await bootstrapHomeData({
+        latitude: location?.lat,
+        longitude: location?.lon,
+        force: true,
+      });
+    } catch (error) {
+      console.error("Home refresh failed", error);
+    } finally {
+      setRefreshing(false);
     }
   };
 
-  const handleDirections = (lat: number, lng: number) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-    Linking.openURL(url);
-  };
+  useFocusEffect(
+    React.useCallback(() => {
+      bootstrapHomeData({
+        latitude: location?.lat,
+        longitude: location?.lon,
+      });
+    }, [bootstrapHomeData, location?.lat, location?.lon]),
+  );
 
-  const closeModal = () => {
-    setModalVisible(false);
-    setNearbyPlaces([]);
-    setSelectedPlaceType(null);
-  };
+  const filteredLocationGroups = useMemo(() => {
+    if (selectedFilter === "all") {
+      return nearbyLocations;
+    }
+
+    return {
+      policeStations:
+        selectedFilter === "policeStations" ? nearbyLocations.policeStations : [],
+      hospitals: selectedFilter === "hospitals" ? nearbyLocations.hospitals : [],
+      pharmacies: selectedFilter === "pharmacies" ? nearbyLocations.pharmacies : [],
+      busStops: selectedFilter === "busStops" ? nearbyLocations.busStops : [],
+    };
+  }, [selectedFilter, nearbyLocations]);
+
+  const mapMarkers = useMemo(() => {
+    const markers: any[] = [
+      {
+        id: "current-user",
+        coordinates: {
+          latitude: Number(safeCurrentLat),
+          longitude: Number(safeCurrentLng),
+        },
+        title: "You",
+        snippet: "Current location",
+        showCallout: true,
+        tintColor: "#0ea5e9",
+        zIndex: 999,
+      },
+    ];
+
+    (nearbyUsers || []).forEach((person, index) => {
+      if (!Number.isFinite(person.latitude) || !Number.isFinite(person.longitude)) {
+        return;
+      }
+
+      markers.push({
+        id: `nearby-user-${person.userId || index}`,
+        coordinates: {
+          latitude: Number(person.latitude),
+          longitude: Number(person.longitude),
+        },
+        title: `User: ${person.name || "Unknown"}`,
+        snippet: person.mobile || "Nearby user",
+        showCallout: true,
+        tintColor: "#7c3aed",
+        zIndex: 700,
+      });
+    });
+
+    const placeGroups: { key: CategoryKey; list: any[] }[] = [
+      { key: "policeStations", list: filteredLocationGroups.policeStations || [] },
+      { key: "hospitals", list: filteredLocationGroups.hospitals || [] },
+      { key: "pharmacies", list: filteredLocationGroups.pharmacies || [] },
+      { key: "busStops", list: filteredLocationGroups.busStops || [] },
+    ];
+
+    placeGroups.forEach(({ key, list }) => {
+      list.forEach((place: any, index: number) => {
+        const lat = place?.location?.lat;
+        const lng = place?.location?.lng;
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          return;
+        }
+
+        markers.push({
+          id: `${key}-${place.place_id || index}`,
+          coordinates: {
+            latitude: Number(lat),
+            longitude: Number(lng),
+          },
+          title: `${CATEGORY_META[key].title}: ${place.name || "Unknown"}`,
+          snippet: place.address || "Nearby location",
+          icon: CATEGORY_META[key].markerImage,
+          tintColor: CATEGORY_META[key].color,
+          showCallout: true,
+          zIndex: 500,
+        });
+      });
+    });
+
+    return markers;
+  }, [safeCurrentLat, safeCurrentLng, nearbyUsers, filteredLocationGroups]);
+
+  const MapComponent = Platform.OS === "ios" ? AppleMaps.View : GoogleMaps.View;
 
   return (
     <SafeAreaView style={styles.homeSafe}>
-      {/* Header */}
       <View style={styles.homeHeader}>
         <View style={styles.homeHeaderInner}>
           <View style={styles.rowCenter}>
@@ -203,192 +305,121 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Trusted Contacts Warning Banner */}
       {(!user?.setTrustedContacts ||
         !trustedContacts ||
         trustedContacts.length === 0) && (
         <TouchableOpacity
           style={styles.warningBanner}
           onPress={() => router.push("/(tabs)/contact")}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
         >
           <View style={styles.warningIconBox}>
-            <Ionicons name="warning" size={24} color="#dc2626" />
+            <Ionicons name="warning" size={18} color="#dc2626" />
           </View>
           <View style={styles.warningContent}>
             <Text style={styles.warningTitle}>No Trusted Contacts Set</Text>
-            <Text style={styles.warningMessage}>
-              Add at least one trusted contact for emergency situations
-            </Text>
+            <Text style={styles.warningMessage}>Add at least one trusted contact</Text>
           </View>
-          <Ionicons name="chevron-forward" size={24} color="#dc2626" />
+          <Ionicons name="chevron-forward" size={18} color="#dc2626" />
         </TouchableOpacity>
       )}
 
       <ScrollView
         style={styles.mainScroll}
-        contentContainerStyle={{ paddingBottom: 110 }}
+        contentContainerStyle={styles.mainContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
-        {/* SOS */}
-        <View style={styles.centerSection}>
-          <View style={{ alignItems: "center", justifyContent: "center" }}>
-            {hasTrustedContacts && <View style={styles.sosPulse} />}
-            <TouchableOpacity
-              style={[
-                styles.sosButton,
-                !hasTrustedContacts && styles.sosButtonDisabled,
-              ]}
-              onPress={handlePress}
-              disabled={sosLoading}
-              activeOpacity={hasTrustedContacts ? 0.7 : 0.95}
-            >
-              {sosLoading ? (
-                <ActivityIndicator size="large" color="#ffffff" />
-              ) : (
-                <>
-                  <MaterialCommunityIcons
-                    name="alert-circle-outline"
-                    size={72}
-                    color="#ffffff"
-                  />
-                  <Text style={styles.sosText}>SOS</Text>
-                  <View
-                    style={[
-                      styles.sosPhoneBadge,
-                      !hasTrustedContacts && styles.sosPhoneBadgeDisabled,
-                    ]}
-                  >
-                    <Ionicons
-                      name="call-outline"
-                      size={26}
-                      color={hasTrustedContacts ? "#dc2626" : "#9ca3af"}
-                    />
-                  </View>
-                </>
-              )}
-            </TouchableOpacity>
+        <View style={styles.infoRow}>
+          <View style={styles.infoCardLeft}>
+            <Text style={styles.infoLabel}>Your location</Text>
+            <Text numberOfLines={1} style={styles.infoValue}>
+              {locationLabel}
+            </Text>
           </View>
-          <Text style={styles.sosHint}>
-            {hasTrustedContacts
-              ? "Press for emergency"
-              : "Add trusted contacts to activate"}
-          </Text>
+          <View style={styles.infoCardRight}>
+            <Text style={styles.infoLabel}>Nearby users</Text>
+            <Text style={styles.infoValue}>{nearbyUserCount}</Text>
+          </View>
         </View>
 
-        {/* Background Listen */}
-        <View style={styles.listenCard}>
-          <View style={styles.rowBetween}>
-            <View style={styles.rowCenter}>
-              <View style={styles.listenIconBox}>
-                <Ionicons
-                  name="volume-high-outline"
-                  size={26}
-                  color="#ffffff"
-                />
-              </View>
-              <View>
-                <Text style={styles.listenTitle}>Background Listen</Text>
-                <Text style={styles.listenSubtitle}>Real-time monitoring</Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              onPress={() => toggleBackgroundListening(!isBackgroundListening)}
-              style={[
-                styles.toggleOuter,
-                {
-                  backgroundColor: isBackgroundListening
-                    ? "#0f766e"
-                    : "#d1d5db",
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.toggleInner,
-                  {
-                    alignSelf: isBackgroundListening
-                      ? "flex-end"
-                      : "flex-start",
+        <View style={styles.mapCard}>
+          <MapComponent
+            ref={mapRef}
+            style={styles.map}
+            markers={mapMarkers}
+            uiSettings={{
+              zoomControlsEnabled: false,
+              mapToolbarEnabled: false,
+              myLocationButtonEnabled: false,
+              compassEnabled: false,
+            }}
+            onMapLoaded={async () => {
+              try {
+                await mapRef.current?.setCameraPosition({
+                  coordinates: {
+                    latitude: Number(safeCurrentLat),
+                    longitude: Number(safeCurrentLng),
                   },
-                ]}
-              />
-            </TouchableOpacity>
-          </View>
+                  zoom: 14.5,
+                });
+              } catch (error) {
+                console.error("Map camera setup failed", error);
+              }
+            }}
+          />
         </View>
 
-        {/* Nearest Location */}
-        <View style={styles.cardWhite}>
-          <View style={styles.rowBetween}>
-            <Text style={styles.sectionTitle}>Nearest Location</Text>
-            <Ionicons
-              name="chevron-forward-outline"
-              size={22}
-              color="#9ca3af"
-            />
-          </View>
+        <View style={styles.categoryRow}>
+          {(
+            Object.keys(CATEGORY_META) as CategoryKey[]
+          ).map((key: CategoryKey) => {
+            const item = CATEGORY_META[key];
+            const isSelected = selectedFilter === key;
+            const count =
+              key === "policeStations"
+                ? nearbyLocations.policeStations.length
+                : key === "hospitals"
+                  ? nearbyLocations.hospitals.length
+                  : key === "pharmacies"
+                    ? nearbyLocations.pharmacies.length
+                    : nearbyLocations.busStops.length;
 
-          <View style={styles.gridRow}>
-            {[
-              {
-                label: "Police Station",
-                icon: "shield-home",
-                colorFrom: "#3b82f6",
-                colorBg: "#eff6ff",
-              },
-              {
-                label: "Hospital",
-                icon: "hospital-building",
-                colorFrom: "#ef4444",
-                colorBg: "#fee2e2",
-              },
-              {
-                label: "Pharmacy",
-                icon: "medical-bag",
-                colorFrom: "#22c55e",
-                colorBg: "#dcfce7",
-              },
-              {
-                label: "Bus Stop",
-                icon: "bus-stop",
-                colorFrom: "#f97316",
-                colorBg: "#ffedd5",
-              },
-            ].map((item, idx) => (
+            return (
               <TouchableOpacity
-                key={idx}
-                style={[styles.locationCard, { backgroundColor: item.colorBg }]}
-                onPress={() => handleLocationCardPress(item.label)}
+                key={key}
+                style={[
+                  styles.categoryButton,
+                  isSelected && { borderColor: item.color, backgroundColor: "#ffffff" },
+                ]}
+                onPress={() =>
+                  setSelectedFilter((current) => (current === key ? "all" : key))
+                }
+                activeOpacity={0.85}
               >
-                <View
-                  style={[
-                    styles.locationIconBox,
-                    { backgroundColor: item.colorFrom },
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name={item.icon}
-                    size={26}
-                    color="#ffffff"
-                  />
-                </View>
-                <Text style={styles.locationLabel}>{item.label}</Text>
+                <MaterialCommunityIcons
+                  name={item.icon}
+                    size={24}
+                  color={item.color}
+                />
+                <Text style={styles.categoryText}>{item.title}</Text>
+                <Text style={styles.categoryCount}>{count}</Text>
               </TouchableOpacity>
-            ))}
-          </View>
+            );
+          })}
         </View>
 
-        {/* Emergency Contact */}
         <View style={styles.emergencyWrapper}>
-          <View style={styles.rowBetween}>
+          <View style={styles.rowBetweenCompact}>
             <Text style={styles.emergencyTitle}>Emergency Contact</Text>
-            <View style={styles.emergencyPulseDot} />
           </View>
 
           <View style={styles.emergencyGrid}>
             {[
-              { label: "Women Help", icon: "shield-account", number: "1091" },
+              { label: "Women", icon: "shield-account", number: "1091" },
               { label: "Ambulance", icon: "ambulance", number: "102" },
-              { label: "Fire Brigade", icon: "fire-truck", number: "101" },
+              { label: "Fire", icon: "fire-truck", number: "101" },
             ].map((item, idx) => (
               <TouchableOpacity
                 key={idx}
@@ -398,7 +429,7 @@ export default function HomeScreen() {
                 <View style={styles.emergencyIconBox}>
                   <MaterialCommunityIcons
                     name={item.icon}
-                    size={26}
+                    size={20}
                     color="#ffffff"
                   />
                 </View>
@@ -408,113 +439,58 @@ export default function HomeScreen() {
             ))}
           </View>
         </View>
-      </ScrollView>
 
-      {/* Modal for nearby places */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={closeModal}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nearby {selectedPlaceType}</Text>
-              <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#111827" />
-              </TouchableOpacity>
+        <View style={styles.listenCard}>
+          <View style={styles.rowBetweenCompact}>
+            <View style={styles.rowCenter}>
+              <View style={styles.listenIconBox}>
+                <Ionicons name="volume-high-outline" size={18} color="#ffffff" />
+              </View>
+              <Text style={styles.listenTitle}>Background Listen</Text>
             </View>
-
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#0f766e" />
-                <Text style={styles.loadingText}>Finding nearby places...</Text>
-              </View>
-            ) : nearbyPlaces.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="location-outline" size={48} color="#9ca3af" />
-                <Text style={styles.emptyText}>No places found nearby</Text>
-              </View>
-            ) : (
-              <ScrollView style={styles.placesList}>
-                {nearbyPlaces.map((place, idx) => (
-                  <View key={place.place_id || idx} style={styles.placeCard}>
-                    <View style={styles.placeHeader}>
-                      <View style={styles.placeInfo}>
-                        <Text style={styles.placeName}>{place.name}</Text>
-                        {place.distance !== undefined && (
-                          <View style={styles.distanceBadge}>
-                            <Ionicons
-                              name="location"
-                              size={12}
-                              color="#6b7280"
-                            />
-                            <Text style={styles.distanceText}>
-                              {formatDistance(place.distance)}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                      {place.rating && (
-                        <View style={styles.ratingBadge}>
-                          <Ionicons name="star" size={14} color="#f59e0b" />
-                          <Text style={styles.ratingText}>{place.rating}</Text>
-                        </View>
-                      )}
-                    </View>
-
-                    <Text style={styles.placeAddress}>{place.address}</Text>
-
-                    {place.isOpen !== undefined && (
-                      <Text
-                        style={[
-                          styles.openStatus,
-                          { color: place.isOpen ? "#059669" : "#dc2626" },
-                        ]}
-                      >
-                        {place.isOpen ? "Open Now" : "Closed"}
-                      </Text>
-                    )}
-
-                    <View style={styles.placeActions}>
-                      <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() =>
-                          handleDirections(
-                            place.location.lat,
-                            place.location.lng,
-                          )
-                        }
-                      >
-                        <Ionicons name="navigate" size={20} color="#3b82f6" />
-                        <Text style={styles.actionButtonText}>Directions</Text>
-                      </TouchableOpacity>
-
-                      {place.contactNumber && (
-                        <TouchableOpacity
-                          style={[styles.actionButton, styles.callButton]}
-                          onPress={() => handleCall(place.contactNumber!)}
-                        >
-                          <Ionicons name="call" size={20} color="#10b981" />
-                          <Text
-                            style={[
-                              styles.actionButtonText,
-                              { color: "#10b981" },
-                            ]}
-                          >
-                            Call
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </View>
-                ))}
-              </ScrollView>
-            )}
+            <TouchableOpacity
+              onPress={() => toggleBackgroundListening(!isBackgroundListening)}
+              style={[
+                styles.toggleOuter,
+                {
+                  backgroundColor: isBackgroundListening ? "#0f766e" : "#d1d5db",
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.toggleInner,
+                  {
+                    alignSelf: isBackgroundListening ? "flex-end" : "flex-start",
+                  },
+                ]}
+              />
+            </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+
+        <View style={styles.sosSection}>
+          <TouchableOpacity
+            style={[styles.sosButton, !hasTrustedContacts && styles.sosButtonDisabled]}
+            onPress={handlePress}
+            disabled={sosLoading}
+            activeOpacity={hasTrustedContacts ? 0.75 : 0.95}
+          >
+            {sosLoading ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <>
+                <MaterialCommunityIcons
+                  name="alert-circle-outline"
+                  size={34}
+                  color="#ffffff"
+                />
+                <Text style={styles.sosText}>SOS</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -524,60 +500,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  rowBetween: {
+  rowBetweenCompact: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-  },
-  warningBanner: {
-    backgroundColor: "#fef2f2",
-    borderLeftWidth: 4,
-    borderLeftColor: "#dc2626",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 16,
-    marginTop: 12,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  warningIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#fee2e2",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  warningContent: {
-    flex: 1,
-  },
-  warningTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#991b1b",
-    marginBottom: 2,
-  },
-  warningMessage: {
-    fontSize: 12,
-    color: "#dc2626",
-    lineHeight: 16,
-  },
-  mainScroll: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  centerSection: {
-    alignItems: "center",
-    marginTop: 20,
-    marginBottom: 24,
   },
   homeSafe: {
     flex: 1,
@@ -625,337 +551,229 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  sosPulse: {
-    position: "absolute",
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: "rgba(248,113,113,0.2)",
-  },
-  sosButton: {
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: "#dc2626",
+  warningBanner: {
+    backgroundColor: "#fef2f2",
+    borderLeftWidth: 3,
+    borderLeftColor: "#dc2626",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 4,
-    borderColor: "#ffffff",
-    elevation: 10,
+    marginHorizontal: 12,
+    marginTop: 8,
+    borderRadius: 10,
   },
-  sosButtonDisabled: {
-    backgroundColor: "#d1d5db",
-    opacity: 0.6,
-    elevation: 4,
-  },
-  sosText: {
-    fontSize: 34,
-    color: "#ffffff",
-    fontWeight: "900",
-    marginTop: 4,
-  },
-  sosPhoneBadge: {
-    position: "absolute",
-    right: -10,
-    bottom: -10,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#ffffff",
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 6,
-  },
-  sosPhoneBadgeDisabled: {
-    backgroundColor: "#f3f4f6",
-    elevation: 2,
-  },
-  sosHint: {
-    marginTop: 10,
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#374151",
-  },
-  listenCard: {
-    backgroundColor: "#eff6ff",
-    borderRadius: 24,
-    padding: 16,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: "#bfdbfe",
-    marginBottom: 16,
-  },
-  listenIconBox: {
-    width: 56,
-    height: 56,
-    borderRadius: 20,
-    backgroundColor: "#3b82f6",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-  listenTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#111827",
-  },
-  listenSubtitle: {
-    fontSize: 11,
-    color: "#4b5563",
-  },
-  toggleOuter: {
-    width: 60,
-    height: 30,
-    borderRadius: 15,
-    padding: 3,
-    justifyContent: "center",
-  },
-  toggleInner: {
+  warningIconBox: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#ffffff",
-  },
-  cardWhite: {
-    backgroundColor: "#ffffff",
-    borderRadius: 24,
-    padding: 16,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: "#111827",
-    marginBottom: 10,
-  },
-  gridRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  locationCard: {
-    width: "48%",
-    borderRadius: 20,
-    padding: 10,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    elevation: 2,
-    alignItems: "center",
-  },
-  locationIconBox: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
+    backgroundColor: "#fee2e2",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 6,
+    marginRight: 8,
   },
-  locationLabel: {
-    fontSize: 13,
+  warningContent: {
+    flex: 1,
+  },
+  warningTitle: {
+    fontSize: 12,
     fontWeight: "700",
+    color: "#991b1b",
+  },
+  warningMessage: {
+    fontSize: 10,
+    color: "#dc2626",
+  },
+  mainScroll: {
+    flex: 1,
+  },
+  mainContent: {
+    flexGrow: 1,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
+    gap: 8,
+  },
+  infoRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  infoCardLeft: {
+    flex: 1.8,
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  infoCardRight: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  infoLabel: {
+    fontSize: 11,
+    color: "#6b7280",
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  infoValue: {
+    fontSize: 13,
+    color: "#0f172a",
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  mapCard: {
+    borderRadius: 14,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    backgroundColor: "#ffffff",
+    height: "31%",
+    minHeight: 170,
+  },
+  map: {
+    width: "100%",
+    height: "100%",
+  },
+  categoryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 6,
+  },
+  categoryButton: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    backgroundColor: "#f8fafc",
+    paddingVertical: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  categoryText: {
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 3,
+    color: "#1e293b",
     textAlign: "center",
-    color: "#111827",
+  },
+  categoryCount: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#0f172a",
+    marginTop: 2,
   },
   emergencyWrapper: {
     backgroundColor: "#fee2e2",
-    borderRadius: 24,
-    padding: 16,
-    borderWidth: 2,
+    borderRadius: 14,
+    padding: 8,
+    borderWidth: 1,
     borderColor: "#fecaca",
-    elevation: 4,
   },
   emergencyTitle: {
-    fontSize: 18,
-    fontWeight: "900",
+    fontSize: 13,
+    fontWeight: "800",
     color: "#111827",
-    marginBottom: 10,
-  },
-  emergencyPulseDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "#ef4444",
   },
   emergencyGrid: {
     flexDirection: "row",
     justifyContent: "space-between",
+    marginTop: 6,
   },
   emergencyCard: {
-    width: "30%",
-    borderRadius: 20,
+    width: "31%",
+    borderRadius: 12,
     backgroundColor: "#ffffff",
-    padding: 8,
+    paddingVertical: 6,
     borderWidth: 1,
     borderColor: "#fecaca",
-    elevation: 3,
     alignItems: "center",
   },
   emergencyIconBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
+    width: 30,
+    height: 30,
+    borderRadius: 10,
     backgroundColor: "#ef4444",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 4,
+    marginBottom: 3,
   },
   emergencyLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
     textAlign: "center",
     color: "#111827",
   },
   emergencyNumber: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
     color: "#b91c1c",
-    marginTop: 2,
+    marginTop: 1,
   },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#ffffff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: "80%",
-    paddingBottom: Platform.OS === "ios" ? 20 : 0,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#111827",
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#f3f4f6",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loadingContainer: {
-    padding: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: "#6b7280",
-  },
-  emptyContainer: {
-    padding: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: "#6b7280",
-  },
-  placesList: {
-    flex: 1,
-    padding: 16,
-  },
-  placeCard: {
-    backgroundColor: "#f9fafb",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  placeHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 8,
-  },
-  placeInfo: {
-    flex: 1,
-    marginRight: 8,
-  },
-  placeName: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 4,
-  },
-  distanceBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 4,
-  },
-  distanceText: {
-    fontSize: 12,
-    color: "#6b7280",
-    marginLeft: 4,
-  },
-  ratingBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fffbeb",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  ratingText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#f59e0b",
-    marginLeft: 4,
-  },
-  placeAddress: {
-    fontSize: 13,
-    color: "#6b7280",
-    marginBottom: 8,
-    lineHeight: 18,
-  },
-  openStatus: {
-    fontSize: 12,
-    fontWeight: "600",
-    marginBottom: 12,
-  },
-  placeActions: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+  listenCard: {
     backgroundColor: "#eff6ff",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
     borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderWidth: 1,
     borderColor: "#bfdbfe",
   },
-  callButton: {
-    backgroundColor: "#dcfce7",
-    borderColor: "#86efac",
+  listenIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    backgroundColor: "#3b82f6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
   },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#3b82f6",
-    marginLeft: 6,
+  listenTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  toggleOuter: {
+    width: 46,
+    height: 24,
+    borderRadius: 12,
+    padding: 2,
+    justifyContent: "center",
+  },
+  toggleInner: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#ffffff",
+  },
+  sosSection: {
+    alignItems: "center",
+  },
+  sosButton: {
+    width: 94,
+    height: 94,
+    borderRadius: 47,
+    backgroundColor: "#dc2626",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#ffffff",
+  },
+  sosButtonDisabled: {
+    backgroundColor: "#d1d5db",
+    opacity: 0.6,
+  },
+  sosText: {
+    fontSize: 18,
+    color: "#ffffff",
+    fontWeight: "900",
+    marginTop: 2,
   },
 });

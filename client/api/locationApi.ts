@@ -31,7 +31,7 @@ export type { LocationData, NearbyUser };
  * Update user's location on the server
  */
 export async function updateLocationOnServer(
-  locationData: LocationData
+  locationData: LocationData,
 ): Promise<{
   success: boolean;
   saved: boolean;
@@ -83,7 +83,7 @@ export async function updateLocationOnServer(
 export async function getNearbyUsers(
   latitude: number,
   longitude: number,
-  radius: number = 500
+  radius: number = 500,
 ): Promise<NearbyUser[]> {
   try {
     console.log("🌐 API Call: getNearbyUsers", { latitude, longitude, radius });
@@ -93,6 +93,7 @@ export async function getNearbyUsers(
       console.error("❌ No authentication token found");
       return [];
     }
+    console.log(token);
 
     const url = `${API_URL}/location/nearby`;
     console.log("📡 Calling:", url);
@@ -169,7 +170,7 @@ export async function getCurrentLocation(): Promise<LocationData | null> {
  * Get location history for current user
  */
 export async function getLocationHistory(
-  limit: number = 50
+  limit: number = 50,
 ): Promise<LocationData[]> {
   try {
     const token = await AsyncStorage.getItem("token");

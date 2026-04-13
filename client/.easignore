@@ -1,0 +1,87 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Node modules (already handled by EAS, but just in case)
+node_modules
+npm-debug.log
+yarn-error.log
+
+# IDEs and editors
+.vscode
+.idea
+.DS_Store
+*.swp
+*.swo
+*~
+.sublime-project
+.sublime-workspace
+*.iml
+
+# Build and cache directories
+android/build
+android/.gradle
+android/app/build
+android/app/.cxx
+android/.cxx
+android/**/build
+android/**/.gradle
+android/**/.cxx
+ios/build
+.expo
+dist
+build
+.cache
+
+# Development tools
+.prettierignore
+.prettierrc
+.eslintignore
+
+# Test files and coverage
+__tests__
+__mocks__
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+coverage
+.jest
+
+# Environment files (keep .env.production for production builds)
+.env
+.env.local
+.env.development
+.env.test
+
+# Documentation
+docs
+CONTRIBUTING.md
+CHANGELOG.md
+README.md
+
+# Temporary files
+*.log
+*.tmp
+.turbo
+
+# Scripts directory (unnecessary for builds)
+scripts
+
+# Source maps (reduce bundle size)
+*.map
+
+# Unwanted asset duplicates
+assets/**/*.bak
+assets/**/*.backup
+
+# Ignore alternate lockfile only when not used
+yarn.lock
+
+# Miscellaneous
+.DS_Store
+Thumbs.db
+.env.example
+*.apk
+*.aab

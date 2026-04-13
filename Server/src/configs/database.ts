@@ -3,7 +3,9 @@ import mongoose from "mongoose";
 export const connectDatabase = async (): Promise<void> => {
   try {
     const MONGODB_URI =
-      process.env.MONGODB_URI || "mongodb://localhost:27017/suraksha";
+      process.env.NODE_ENV! === "production"
+        ? process.env.MONGODB_URI!
+        : "mongodb://localhost:27017/suraksha";
 
     // MongoDB connection options
     const options = {
@@ -17,7 +19,7 @@ export const connectDatabase = async (): Promise<void> => {
     // Connect to MongoDB
     await mongoose.connect(MONGODB_URI, options);
 
-    console.log("✅ MongoDB connected successfully");
+    console.log("✅ MongoDB connected successfully : " + MONGODB_URI);
     console.log(`📍 Database: ${mongoose.connection.name}`);
     console.log(`🌐 Host: ${mongoose.connection.host}`);
 
@@ -43,7 +45,7 @@ export const connectDatabase = async (): Promise<void> => {
   } catch (error) {
     console.error("❌ MongoDB connection failed:", (error as Error).message);
     console.error(
-      "💡 Please ensure MongoDB is running and the connection string is correct"
+      "💡 Please ensure MongoDB is running and the connection string is correct",
     );
     process.exit(1);
   }
@@ -59,7 +61,7 @@ export const disconnectDatabase = async (): Promise<void> => {
   } catch (error) {
     console.error(
       "❌ Error closing MongoDB connection:",
-      (error as Error).message
+      (error as Error).message,
     );
   }
 };

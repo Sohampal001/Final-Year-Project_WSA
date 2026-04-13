@@ -15,6 +15,8 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import axios from "axios";
 import { useAuthStore } from "../store/useAuthStore";
+import { useLocationStore } from "../store/useLocationStore";
+import { useHomeBootstrapStore } from "../store/useHomeBootstrapStore";
 
 export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
@@ -23,6 +25,10 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { setAuth, isAuthenticated, fetchTrustedContacts } = useAuthStore();
+  const location = useLocationStore((state) => state.location);
+  const bootstrapHomeData = useHomeBootstrapStore(
+    (state) => state.bootstrapHomeData,
+  );
 
   const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL!;
 
@@ -52,8 +58,17 @@ export default function LoginScreen() {
         // Save auth to global store
         await setAuth(data.data, data.token);
 
-        // Fetch trusted contacts after login
-        await fetchTrustedContacts(true);
+        // Fetch full home payload after login and hydrate corresponding stores.
+        const bootstrapped = await bootstrapHomeData({
+          latitude: location?.lat,
+          longitude: location?.lon,
+          force: true,
+        });
+
+        // Fallback to existing flow if bootstrap request fails.
+        if (!bootstrapped) {
+          await fetchTrustedContacts(true);
+        }
 
         // Check if user needs to set trusted contacts
         if (!data.data.setTrustedContacts) {
