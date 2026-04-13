@@ -9,6 +9,7 @@
     "target": "ES2022",
     "lib": ["ES2022"],
     "moduleResolution": "bundler",
+    "rewriteRelativeImportExtensions": true,
     
     // Node.js specific
     "types": ["node"],

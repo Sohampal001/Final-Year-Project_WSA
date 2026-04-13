@@ -1,6 +1,6 @@
 import { Types } from "mongoose";
-import { Location } from "../models/Location";
-import type { ILocation } from "../models/Location";
+import { Location } from "../models/Location.ts";
+import type { ILocation } from "../models/Location.ts";
 
 export interface LocationData {
   latitude: number;
@@ -21,7 +21,7 @@ export class LocationService {
     lat1: number,
     lon1: number,
     lat2: number,
-    lon2: number
+    lon2: number,
   ): number {
     const R = 6371000; // Earth's radius in meters
     const φ1 = (lat1 * Math.PI) / 180; // Convert to radians
@@ -42,7 +42,7 @@ export class LocationService {
    * Get the last location for a user
    */
   static async getLastLocation(
-    userId: string | Types.ObjectId
+    userId: string | Types.ObjectId,
   ): Promise<ILocation | null> {
     try {
       const lastLocation = await Location.findOne({ userId })
@@ -61,7 +61,7 @@ export class LocationService {
    */
   static async storeLocation(
     userId: string | Types.ObjectId,
-    locationData: LocationData
+    locationData: LocationData,
   ): Promise<{
     saved: boolean;
     location: ILocation | null;
@@ -80,7 +80,7 @@ export class LocationService {
           lastLocation.latitude,
           lastLocation.longitude,
           locationData.latitude,
-          locationData.longitude
+          locationData.longitude,
         );
 
         // Only store if distance is >= 5 meters
@@ -113,8 +113,8 @@ export class LocationService {
               lastLocation.latitude,
               lastLocation.longitude,
               locationData.latitude,
-              locationData.longitude
-            ) * 100
+              locationData.longitude,
+            ) * 100,
           ) / 100
         : undefined;
 
@@ -138,7 +138,7 @@ export class LocationService {
     latitude: number,
     longitude: number,
     radiusInMeters: number,
-    excludeUserId?: string | Types.ObjectId
+    excludeUserId?: string | Types.ObjectId,
   ): Promise<
     Array<{
       userId: Types.ObjectId;
@@ -202,7 +202,7 @@ export class LocationService {
             latitude,
             longitude,
             loc.latitude,
-            loc.longitude
+            loc.longitude,
           );
 
           return {
@@ -245,7 +245,7 @@ export class LocationService {
    */
   static async getLocationHistory(
     userId: string | Types.ObjectId,
-    limit: number = 50
+    limit: number = 50,
   ): Promise<ILocation[]> {
     try {
       const history = await Location.find({ userId })

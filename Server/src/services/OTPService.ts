@@ -1,7 +1,7 @@
-import { OTP, type IOTP } from "../models/OTP";
-import { User } from "../models/User";
+import { OTP, type IOTP } from "../models/OTP.ts";
+import { User } from "../models/User.ts";
 import { Types } from "mongoose";
-import EmailService from "./EmailService";
+import EmailService from "./EmailService.ts";
 
 export class OTPService {
   /**
@@ -17,7 +17,7 @@ export class OTPService {
   private async sendOTPToEmail(
     email: string,
     otp: string,
-    purpose: string
+    purpose: string,
   ): Promise<void> {
     try {
       const subject = `Your OTP for ${purpose}`;
@@ -39,7 +39,7 @@ export class OTPService {
       console.log(`📧 OTP sent to email: ${email}`);
     } catch (error) {
       throw new Error(
-        `Failed to send OTP to email: ${(error as Error).message}`
+        `Failed to send OTP to email: ${(error as Error).message}`,
       );
     }
   }
@@ -50,7 +50,7 @@ export class OTPService {
   private async sendOTPToMobile(
     mobile: string,
     otp: string,
-    purpose: string
+    purpose: string,
   ): Promise<void> {
     // TODO: Integrate with SMS service (Twilio, AWS SNS, etc.)
     console.log(`📱 OTP for mobile ${mobile}: ${otp} (Purpose: ${purpose})`);
@@ -69,7 +69,7 @@ export class OTPService {
       | "MOBILE_VERIFICATION"
       | "PASSWORD_RESET",
     purpose: string,
-    sendTo: { email?: string; mobile?: string }
+    sendTo: { email?: string; mobile?: string },
   ): Promise<{ success: boolean; message: string }> {
     try {
       // Validate that at least email or mobile is provided
@@ -103,7 +103,7 @@ export class OTPService {
         return {
           success: true,
           message: `OTP resent successfully. Valid for ${Math.ceil(
-            (existingOTP.expiresAt.getTime() - Date.now()) / 60000
+            (existingOTP.expiresAt.getTime() - Date.now()) / 60000,
           )} minutes.`,
         };
       }
@@ -157,7 +157,7 @@ export class OTPService {
       | "EMAIL_VERIFICATION"
       | "MOBILE_VERIFICATION"
       | "PASSWORD_RESET",
-    otp: string
+    otp: string,
   ): Promise<{ success: boolean; message: string }> {
     try {
       // Find OTP
@@ -204,7 +204,7 @@ export class OTPService {
       | "SIGNUP"
       | "EMAIL_VERIFICATION"
       | "MOBILE_VERIFICATION"
-      | "PASSWORD_RESET"
+      | "PASSWORD_RESET",
   ): Promise<IOTP | null> {
     try {
       const otp = await OTP.findOne({
@@ -230,7 +230,7 @@ export class OTPService {
       | "SIGNUP"
       | "EMAIL_VERIFICATION"
       | "MOBILE_VERIFICATION"
-      | "PASSWORD_RESET"
+      | "PASSWORD_RESET",
   ): Promise<boolean> {
     try {
       const result = await OTP.deleteMany({ userId, type });

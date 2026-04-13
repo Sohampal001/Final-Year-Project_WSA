@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import otpService from "../services/OTPService";
+import otpService from "../services/OTPService.ts";
 
 /**
  * Send OTP
@@ -184,7 +184,7 @@ export const getOTPStatus = async (req: Request, res: Response) => {
         | "SIGNUP"
         | "EMAIL_VERIFICATION"
         | "MOBILE_VERIFICATION"
-        | "PASSWORD_RESET"
+        | "PASSWORD_RESET",
     );
 
     if (!otp) {
@@ -195,7 +195,7 @@ export const getOTPStatus = async (req: Request, res: Response) => {
     }
 
     const remainingMinutes = Math.ceil(
-      (otp.expiresAt.getTime() - Date.now()) / 60000
+      (otp.expiresAt.getTime() - Date.now()) / 60000,
     );
 
     return res.status(200).json({

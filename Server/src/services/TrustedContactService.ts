@@ -1,6 +1,6 @@
-import { TrustedContact } from "../models/TrustedContact";
-import { Guardian } from "../models/Guardian";
-import { User } from "../models/User";
+import { TrustedContact } from "../models/TrustedContact.ts";
+import { Guardian } from "../models/Guardian.ts";
+import { User } from "../models/User.ts";
 import { Types } from "mongoose";
 
 /**
@@ -27,7 +27,7 @@ export class TrustedContactService {
     userId: string | Types.ObjectId,
     name: string,
     mobile: string,
-    relationship: string
+    relationship: string,
   ): Promise<{ success: boolean; message: string; data?: any }> {
     try {
       // Check if user exists
@@ -57,7 +57,7 @@ export class TrustedContactService {
       });
 
       const existingContact = allContacts.find(
-        (contact) => normalizePhoneNumber(contact.mobile) === normalizedMobile
+        (contact) => normalizePhoneNumber(contact.mobile) === normalizedMobile,
       );
 
       if (existingContact) {
@@ -70,7 +70,7 @@ export class TrustedContactService {
       // Check if this mobile number is the guardian's number (compare normalized)
       const allGuardians = await Guardian.find({ userId });
       const guardian = allGuardians.find(
-        (g) => normalizePhoneNumber(g.mobile) === normalizedMobile
+        (g) => normalizePhoneNumber(g.mobile) === normalizedMobile,
       );
       const isGuardian = !!guardian;
 
@@ -103,7 +103,7 @@ export class TrustedContactService {
       };
     } catch (error) {
       throw new Error(
-        `Error adding trusted contact: ${(error as Error).message}`
+        `Error adding trusted contact: ${(error as Error).message}`,
       );
     }
   }
@@ -121,7 +121,7 @@ export class TrustedContactService {
       return trustedContacts;
     } catch (error) {
       throw new Error(
-        `Error getting trusted contacts: ${(error as Error).message}`
+        `Error getting trusted contacts: ${(error as Error).message}`,
       );
     }
   }
@@ -131,7 +131,7 @@ export class TrustedContactService {
    */
   async deactivateTrustedContact(
     userId: string | Types.ObjectId,
-    contactId: string
+    contactId: string,
   ): Promise<{ success: boolean; message: string }> {
     try {
       // Count total active trusted contacts
@@ -183,7 +183,7 @@ export class TrustedContactService {
       };
     } catch (error) {
       throw new Error(
-        `Error deactivating trusted contact: ${(error as Error).message}`
+        `Error deactivating trusted contact: ${(error as Error).message}`,
       );
     }
   }
@@ -193,7 +193,7 @@ export class TrustedContactService {
    */
   async deleteTrustedContact(
     userId: string | Types.ObjectId,
-    contactId: string
+    contactId: string,
   ): Promise<{ success: boolean; message: string }> {
     try {
       // Count total active trusted contacts
@@ -241,7 +241,7 @@ export class TrustedContactService {
       };
     } catch (error) {
       throw new Error(
-        `Error deleting trusted contact: ${(error as Error).message}`
+        `Error deleting trusted contact: ${(error as Error).message}`,
       );
     }
   }
@@ -252,7 +252,7 @@ export class TrustedContactService {
   async updateTrustedContact(
     userId: string | Types.ObjectId,
     contactId: string,
-    updates: { name?: string; relationship?: string }
+    updates: { name?: string; relationship?: string },
   ): Promise<{ success: boolean; message: string; data?: any }> {
     try {
       const contact = await TrustedContact.findOne({
@@ -281,7 +281,7 @@ export class TrustedContactService {
       };
     } catch (error) {
       throw new Error(
-        `Error updating trusted contact: ${(error as Error).message}`
+        `Error updating trusted contact: ${(error as Error).message}`,
       );
     }
   }
@@ -291,7 +291,7 @@ export class TrustedContactService {
    */
   async getAllTrustedContacts(
     userId: string | Types.ObjectId,
-    includeInactive: boolean = false
+    includeInactive: boolean = false,
   ): Promise<any[]> {
     try {
       const filter: any = { userId };
@@ -306,7 +306,7 @@ export class TrustedContactService {
       return trustedContacts;
     } catch (error) {
       throw new Error(
-        `Error getting all trusted contacts: ${(error as Error).message}`
+        `Error getting all trusted contacts: ${(error as Error).message}`,
       );
     }
   }
@@ -323,7 +323,7 @@ export class TrustedContactService {
       return count > 0;
     } catch (error) {
       throw new Error(
-        `Error checking trusted contacts: ${(error as Error).message}`
+        `Error checking trusted contacts: ${(error as Error).message}`,
       );
     }
   }

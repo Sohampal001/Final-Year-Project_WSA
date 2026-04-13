@@ -54,7 +54,7 @@ class GooglePlacesService {
     lat1: number,
     lon1: number,
     lat2: number,
-    lon2: number
+    lon2: number,
   ): number {
     const R = 6371e3; // Earth's radius in meters
     const φ1 = (lat1 * Math.PI) / 180;
@@ -129,6 +129,7 @@ class GooglePlacesService {
       }
 
       const response = await axios.get(GOOGLE_PLACES_BASE_URL, { params });
+      console.log(response.data);
 
       if (
         response.data.status !== "OK" &&
@@ -151,7 +152,7 @@ class GooglePlacesService {
             latitude,
             longitude,
             place.geometry.location.lat,
-            place.geometry.location.lng
+            place.geometry.location.lng,
           );
 
           // Fetch detailed information
@@ -176,7 +177,7 @@ class GooglePlacesService {
             openingHours: details?.opening_hours?.weekday_text,
             website: details?.website,
           };
-        })
+        }),
       );
 
       // Sort by distance
@@ -186,7 +187,7 @@ class GooglePlacesService {
     } catch (error: any) {
       console.error("Error fetching nearby places:", error);
       throw new Error(
-        `Failed to fetch nearby places: ${error.message || "Unknown error"}`
+        `Failed to fetch nearby places: ${error.message || "Unknown error"}`,
       );
     }
   }
@@ -198,7 +199,7 @@ class GooglePlacesService {
     latitude: number,
     longitude: number,
     radius: number = 5000,
-    limitPerCategory: number = 5
+    limitPerCategory: number = 5,
   ): Promise<{
     policeStations: PlaceResult[];
     hospitals: PlaceResult[];
@@ -246,7 +247,7 @@ class GooglePlacesService {
       };
     } catch (error: any) {
       throw new Error(
-        `Failed to fetch nearby places by category: ${error.message}`
+        `Failed to fetch nearby places by category: ${error.message}`,
       );
     }
   }

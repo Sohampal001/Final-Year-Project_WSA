@@ -7,8 +7,8 @@ import {
   deactivateTrustedContact,
   updateTrustedContact,
   hasTrustedContacts,
-} from "../controllers/trustedContactController";
-import { authenticate } from "../middlewares/auth";
+} from "../controllers/trustedContactController.ts";
+import { authenticate } from "../middlewares/auth.ts";
 
 const router = express.Router();
 

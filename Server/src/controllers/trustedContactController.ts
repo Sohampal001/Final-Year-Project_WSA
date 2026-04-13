@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import trustedContactService from "../services/TrustedContactService";
+import trustedContactService from "../services/TrustedContactService.ts";
 
 /**
  * Add a trusted contact
@@ -20,7 +20,7 @@ export const addTrustedContact = async (req: Request, res: Response) => {
       userId!,
       name,
       mobile,
-      relationship
+      relationship,
     );
 
     return res.status(result.success ? 201 : 400).json(result);
@@ -73,14 +73,14 @@ export const deactivateTrustedContact = async (req: Request, res: Response) => {
 
     const result = await trustedContactService.deactivateTrustedContact(
       userId!,
-      contactId
+      contactId,
     );
 
     return res.status(result.success ? 200 : 400).json(result);
   } catch (error: unknown) {
     console.error(
       "❌ Deactivate Trusted Contact Error:",
-      (error as Error).message
+      (error as Error).message,
     );
     return res.status(500).json({
       success: false,
@@ -106,7 +106,7 @@ export const deleteTrustedContact = async (req: Request, res: Response) => {
 
     const result = await trustedContactService.deleteTrustedContact(
       userId!,
-      contactId
+      contactId,
     );
 
     return res.status(result.success ? 200 : 400).json(result);
@@ -145,7 +145,7 @@ export const updateTrustedContact = async (req: Request, res: Response) => {
     const result = await trustedContactService.updateTrustedContact(
       userId!,
       contactId,
-      { name, relationship }
+      { name, relationship },
     );
 
     return res.status(result.success ? 200 : 400).json(result);
@@ -168,7 +168,7 @@ export const getAllTrustedContacts = async (req: Request, res: Response) => {
 
     const contacts = await trustedContactService.getAllTrustedContacts(
       userId!,
-      includeInactive
+      includeInactive,
     );
 
     return res.status(200).json({
@@ -179,7 +179,7 @@ export const getAllTrustedContacts = async (req: Request, res: Response) => {
   } catch (error: unknown) {
     console.error(
       "❌ Get All Trusted Contacts Error:",
-      (error as Error).message
+      (error as Error).message,
     );
     return res.status(500).json({
       success: false,

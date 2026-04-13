@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { NearbyPlacesController } from "../controllers/nearbyPlacesController";
-import { authenticate } from "../middlewares/auth";
+import { NearbyPlacesController } from "../controllers/nearbyPlacesController.ts";
+import { authenticate } from "../middlewares/auth.ts";
 
 const router = Router();
 

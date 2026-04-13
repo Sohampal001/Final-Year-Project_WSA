@@ -1,4 +1,4 @@
-import { User, type IUser } from "../models/User";
+import { User, type IUser } from "../models/User.ts";
 import { Types } from "mongoose";
 import bcrypt from "bcrypt";
 

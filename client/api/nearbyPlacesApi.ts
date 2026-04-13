@@ -33,7 +33,7 @@ export async function getNearbyPlacesByCategory(
   latitude: number,
   longitude: number,
   radius: number = 5000,
-  limitPerCategory: number = 5
+  limitPerCategory: number = 5,
 ): Promise<NearbyPlacesByCategory> {
   try {
     const token = await AsyncStorage.getItem("authToken");
@@ -49,7 +49,7 @@ export async function getNearbyPlacesByCategory(
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-      }
+      },
     );
 
     const data = await response.json();
@@ -73,7 +73,7 @@ export async function getNearbyPlaces(
   longitude: number,
   type?: "police" | "hospital" | "pharmacy" | "bus_station",
   radius: number = 5000,
-  limit: number = 10
+  limit: number = 10,
 ): Promise<NearbyPlace[]> {
   try {
     const token = await AsyncStorage.getItem("authToken");

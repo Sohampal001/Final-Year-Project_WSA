@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import { useSafetyStore } from "./useSafetyStore";
 
 interface User {
   _id: string;
@@ -76,6 +77,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: true,
         isLoading: false,
       });
+
+      // Fetch the user's safety codeword silently in the background
+      useSafetyStore
+        .getState()
+        .syncCodewordFromServer()
+        .catch(() => {});
     } catch (error) {
       console.error("Error saving auth:", error);
     }
@@ -87,6 +94,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await AsyncStorage.removeItem("userId");
       await AsyncStorage.removeItem("user");
       await AsyncStorage.removeItem("trustedContacts");
+      await AsyncStorage.removeItem("hashedCodeword");
 
       set({
         user: null,
@@ -104,9 +112,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const token = await AsyncStorage.getItem("authToken");
       const userString = await AsyncStorage.getItem("user");
-      const trustedContactsString = await AsyncStorage.getItem(
-        "trustedContacts"
-      );
+      const trustedContactsString =
+        await AsyncStorage.getItem("trustedContacts");
 
       if (token && userString) {
         const user = JSON.parse(userString);
@@ -180,14 +187,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set((state) => {
       if (state.trustedContacts) {
         const updatedContacts = state.trustedContacts.filter(
-          (c) => c._id !== contactId
+          (c) => c._id !== contactId,
         );
 
         // Handle AsyncStorage properly for empty arrays
         if (updatedContacts.length > 0) {
           AsyncStorage.setItem(
             "trustedContacts",
-            JSON.stringify(updatedContacts)
+            JSON.stringify(updatedContacts),
           );
         } else {
           AsyncStorage.removeItem("trustedContacts");
@@ -247,7 +254,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (contacts.length > 0) {
           await AsyncStorage.setItem(
             "trustedContacts",
-            JSON.stringify(contacts)
+            JSON.stringify(contacts),
           );
         } else {
           await AsyncStorage.removeItem("trustedContacts");
@@ -261,7 +268,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } else {
         console.error(
           "Failed to fetch trusted contacts:",
-          response.data.message
+          response.data.message,
         );
         set({
           trustedContacts: [],

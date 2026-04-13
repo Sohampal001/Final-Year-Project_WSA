@@ -1,11 +1,11 @@
-import { Guardian, type IGuardian } from "../models/Guardian";
-import { Address, type IAddress } from "../models/Address";
-import { Aadhaar, type IAadhaar } from "../models/Aadhar";
-import { User } from "../models/User";
+import { Guardian, type IGuardian } from "../models/Guardian.ts";
+import { Address, type IAddress } from "../models/Address.ts";
+import { Aadhaar, type IAadhaar } from "../models/Aadhar.ts";
+import { User } from "../models/User.ts";
 import { Types } from "mongoose";
 import crypto from "crypto";
-import userService from "./UserService";
-import otpService from "./OTPService";
+import userService from "./UserService.ts";
+import otpService from "./OTPService.ts";
 
 // Temporary storage for Aadhaar number during verification
 interface AadhaarVerificationData {
@@ -27,7 +27,7 @@ export class OnboardingService {
       email?: string;
       aadhaarLast4?: string;
       priority?: number;
-    }
+    },
   ): Promise<IGuardian> {
     try {
       // Check if user exists
@@ -86,7 +86,7 @@ export class OnboardingService {
    */
   async updateGuardian(
     guardianId: string | Types.ObjectId,
-    updateData: Partial<IGuardian>
+    updateData: Partial<IGuardian>,
   ): Promise<IGuardian | null> {
     try {
       const guardian = await Guardian.findByIdAndUpdate(
@@ -95,7 +95,7 @@ export class OnboardingService {
         {
           new: true,
           runValidators: true,
-        }
+        },
       );
       return guardian;
     } catch (error) {
@@ -125,7 +125,7 @@ export class OnboardingService {
       fullAddress: string;
       latitude: number;
       longitude: number;
-    }
+    },
   ): Promise<IAddress> {
     try {
       // Check if user exists
@@ -142,7 +142,7 @@ export class OnboardingService {
 
       if (existingAddress) {
         throw new Error(
-          `${addressData.type} address already exists. Please update instead.`
+          `${addressData.type} address already exists. Please update instead.`,
         );
       }
 
@@ -178,7 +178,7 @@ export class OnboardingService {
    */
   async updateAddress(
     addressId: string | Types.ObjectId,
-    updateData: Partial<IAddress>
+    updateData: Partial<IAddress>,
   ): Promise<IAddress | null> {
     try {
       const address = await Address.findByIdAndUpdate(addressId, updateData, {
@@ -210,7 +210,7 @@ export class OnboardingService {
    */
   async sendAadhaarOTP(
     userId: string | Types.ObjectId,
-    aadhaarNumber: string
+    aadhaarNumber: string,
   ): Promise<{ success: boolean; message: string }> {
     try {
       // Check if user exists
@@ -222,7 +222,7 @@ export class OnboardingService {
       // Check if user has email
       if (!user.email) {
         throw new Error(
-          "User email not found. Please add email to your profile."
+          "User email not found. Please add email to your profile.",
         );
       }
 
@@ -245,7 +245,7 @@ export class OnboardingService {
         userId,
         "AADHAAR",
         "Aadhaar Verification",
-        { email: user.email }
+        { email: user.email },
       );
 
       return result;
@@ -259,7 +259,7 @@ export class OnboardingService {
    */
   async verifyAadhaarOTP(
     userId: string | Types.ObjectId,
-    otp: string
+    otp: string,
   ): Promise<IAadhaar> {
     try {
       const userIdStr = userId.toString();
@@ -268,7 +268,7 @@ export class OnboardingService {
       const aadhaarData = aadhaarVerificationStore.get(userIdStr);
       if (!aadhaarData) {
         throw new Error(
-          "No Aadhaar verification request found. Please request OTP first."
+          "No Aadhaar verification request found. Please request OTP first.",
         );
       }
 
@@ -349,7 +349,7 @@ export class OnboardingService {
       };
     } catch (error) {
       throw new Error(
-        `Error checking onboarding status: ${(error as Error).message}`
+        `Error checking onboarding status: ${(error as Error).message}`,
       );
     }
   }

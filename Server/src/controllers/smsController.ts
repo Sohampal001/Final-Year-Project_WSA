@@ -1,10 +1,10 @@
 import type { Request, Response } from "express";
-import FAST2SMS from "../services/SMSService";
-import EmailService from "../services/EmailService";
-import SMSHistoryService from "../services/SMSHistoryService";
-import { TrustedContact } from "../models/TrustedContact";
-import { Guardian } from "../models/Guardian";
-import { User } from "../models/User";
+import FAST2SMS from "../services/SMSService.ts";
+import EmailService from "../services/EmailService.ts";
+import SMSHistoryService from "../services/SMSHistoryService.ts";
+import { TrustedContact } from "../models/TrustedContact.ts";
+import { Guardian } from "../models/Guardian.ts";
+import { User } from "../models/User.ts";
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -22,6 +22,28 @@ export const sendSMS = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({
         success: false,
         message: "User not authenticated",
+      });
+    }
+
+    const recentSuccessfulSMS =
+      await SMSHistoryService.getLastSuccessfulSMSWithinSeconds(userId, 30);
+    if (recentSuccessfulSMS) {
+      console.log(
+        "⏭️ Skipping SMS API call: last successful SMS was sent within 30 seconds",
+      );
+
+      return res.status(200).json({
+        success: true,
+        sent: true,
+        skipped: true,
+        message:
+          "Emergency alerts were already sent in the last 30 seconds. Returning last response.",
+        data: {
+          smsCount: recentSuccessfulSMS.recipients.length,
+          emailSent: recentSuccessfulSMS.emailSent,
+          requestId: recentSuccessfulSMS.requestId,
+          sentAt: recentSuccessfulSMS.sentAt,
+        },
       });
     }
 
@@ -72,12 +94,12 @@ export const sendSMS = async (req: AuthRequest, res: Response) => {
       numbersArray = trustedContacts.map((contact) => contact.mobile);
       console.log(
         `✅ Extracted ${numbersArray.length} phone numbers from DB:`,
-        numbersArray
+        numbersArray,
       );
     } else {
       console.log(
         `✅ Using ${numbersArray.length} provided numbers:`,
-        numbersArray
+        numbersArray,
       );
     }
 
@@ -111,7 +133,7 @@ Please check on them immediately or call emergency services.`;
     const smsResponse = await FAST2SMS.sendMessage(message, numbersArray);
     console.log(
       "📤 SMS Service Response:",
-      JSON.stringify(smsResponse, null, 2)
+      JSON.stringify(smsResponse, null, 2),
     );
 
     // Fetch guardian email for email notification
@@ -162,7 +184,7 @@ Please check on them immediately or call emergency services.`;
                 } immediately or contact emergency services!</p>
               </div>
 
-              <p style="color: #6b7280; font-size: 12px; margin-top: 20px;">This is an automated emergency alert from Suraksha Safety App. Sent at ${new Date().toLocaleString()}</p>
+              <p style="color: #6b7280; font-size: 12px; margin-top: 20px;">This is an automated emergency alert from Aegis Safety App. Sent at ${new Date().toLocaleString()}</p>
             </div>
           </div>
         `;

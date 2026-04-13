@@ -76,7 +76,7 @@ export default function LocationPermissionGuard({
               onPress: () => {
                 if (Platform.OS === "android") {
                   Linking.sendIntent(
-                    "android.settings.LOCATION_SOURCE_SETTINGS"
+                    "android.settings.LOCATION_SOURCE_SETTINGS",
                   );
                 } else {
                   Linking.openURL("app-settings:");
@@ -87,7 +87,7 @@ export default function LocationPermissionGuard({
               text: "Cancel",
               style: "cancel",
             },
-          ]
+          ],
         );
         return;
       }
@@ -110,14 +110,14 @@ export default function LocationPermissionGuard({
               text: "Cancel",
               style: "cancel",
             },
-          ]
+          ],
         );
       }
     } catch (error) {
       console.error("Error requesting location permission:", error);
       Alert.alert(
         "Error",
-        "Failed to request location permission. Please try again."
+        "Failed to request location permission. Please try again.",
       );
     }
   };
@@ -156,8 +156,8 @@ export default function LocationPermissionGuard({
 
           <Text style={styles.title}>Location Access Required</Text>
           <Text style={styles.subtitle}>
-            Suraksha needs access to your location to provide safety features
-            and emergency alerts.
+            Aegis needs access to your location to provide safety features and
+            emergency alerts.
           </Text>
 
           <View style={styles.featuresList}>

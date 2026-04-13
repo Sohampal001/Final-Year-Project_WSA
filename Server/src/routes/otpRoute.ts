@@ -4,8 +4,8 @@ import {
   verifyOTP,
   getOTPStatus,
   deleteOTP,
-} from "../controllers/otpController";
-import { authenticate } from "../middlewares/auth";
+} from "../controllers/otpController.ts";
+import { authenticate } from "../middlewares/auth.ts";
 
 const router = express.Router();
 

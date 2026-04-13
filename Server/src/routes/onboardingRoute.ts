@@ -12,8 +12,8 @@ import {
   verifyAadhaarOTP,
   getAadhaar,
   getOnboardingStatus,
-} from "../controllers/onboardingController";
-import { authenticate } from "../middlewares/auth";
+} from "../controllers/onboardingController.ts";
+import { authenticate } from "../middlewares/auth.ts";
 
 const router = express.Router();
 

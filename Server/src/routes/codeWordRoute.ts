@@ -6,8 +6,8 @@ import {
   updateCodeWord,
   deleteCodeWord,
   hasCodeWord,
-} from "../controllers/codeWordController";
-import { authenticate } from "../middlewares/auth";
+} from "../controllers/codeWordController.ts";
+import { authenticate } from "../middlewares/auth.ts";
 
 const router = express.Router();
 

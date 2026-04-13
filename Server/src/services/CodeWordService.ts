@@ -1,5 +1,5 @@
-import { CodeWord } from "../models/CodeWord";
-import { User } from "../models/User";
+import { CodeWord } from "../models/CodeWord.ts";
+import { User } from "../models/User.ts";
 import { Types } from "mongoose";
 
 export class CodeWordService {
@@ -8,7 +8,7 @@ export class CodeWordService {
    */
   async setCodeWord(
     userId: string | Types.ObjectId,
-    codeWord: string
+    codeWord: string,
   ): Promise<{ success: boolean; message: string }> {
     try {
       // Check if user exists
@@ -70,7 +70,7 @@ export class CodeWordService {
    */
   async matchCodeWord(
     userId: string | Types.ObjectId,
-    codeWord: string
+    codeWord: string,
   ): Promise<{ success: boolean; message: string; isMatch?: boolean }> {
     try {
       const storedCodeWord = await this.getCodeWord(userId);
@@ -105,7 +105,7 @@ export class CodeWordService {
   async updateCodeWord(
     userId: string | Types.ObjectId,
     oldCodeWord: string,
-    newCodeWord: string
+    newCodeWord: string,
   ): Promise<{ success: boolean; message: string }> {
     try {
       // First verify old code word
@@ -129,7 +129,7 @@ export class CodeWordService {
    * Delete code word
    */
   async deleteCodeWord(
-    userId: string | Types.ObjectId
+    userId: string | Types.ObjectId,
   ): Promise<{ success: boolean; message: string }> {
     try {
       const result = await CodeWord.deleteOne({ userId });

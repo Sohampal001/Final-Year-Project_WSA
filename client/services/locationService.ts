@@ -1,6 +1,7 @@
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useLocationStore } from "../store/useLocationStore";
 
 const LOCATION_TASK_NAME = "background-location-task";
 const APP_STATE_KEY = "app_is_in_foreground";
@@ -208,6 +209,13 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
       accuracy: location.coords.accuracy,
     });
 
+    // CRITICAL FIX: Save it into local store so that if voice triggers an SOS in background, it uses the fresh location!
+    useLocationStore.getState().setLocation({
+      lat: location.coords.latitude,
+      lon: location.coords.longitude,
+      accuracy: location.coords.accuracy,
+    });
+
     // Send location to backend server
     try {
       await sendLocationToServer(
@@ -254,11 +262,6 @@ export const startBackgroundLocationUpdates = async (): Promise<boolean> => {
         timeInterval: 10000, // Every 10 seconds (more reliable for background)
         distanceInterval: 5, // Or every 5 meters
         showsBackgroundLocationIndicator: true,
-        foregroundService: {
-          notificationTitle: "Suraksha Safety Monitoring",
-          notificationBody: "Location tracking active for your safety",
-          notificationColor: "#06b6d4",
-        },
         // Prevent Android from killing the task
         pausesUpdatesAutomatically: false,
         // iOS specific - keeps task alive longer

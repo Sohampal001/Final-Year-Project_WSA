@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { LocationService } from "../services/LocationService";
+import { LocationService } from "../services/LocationService.ts";
 import { Types } from "mongoose";
 
 export class LocationController {
@@ -152,7 +152,7 @@ export class LocationController {
         latitude,
         longitude,
         searchRadius,
-        userId
+        userId,
       );
 
       console.log("📍 Nearby Users Request:");

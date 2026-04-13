@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
-import userService from "../services/UserService";
-import { generateToken } from "../middlewares/auth";
-import otpService from "../services/OTPService";
+import userService from "../services/UserService.ts";
+import { generateToken } from "../middlewares/auth.ts";
+import otpService from "../services/OTPService.ts";
 
 /**
  * Sign up a new user
@@ -458,7 +458,7 @@ export const checkUserExists = async (req: Request, res: Response) => {
 
     const exists = await userService.userExists(
       identifier as string,
-      type as "email" | "mobile"
+      type as "email" | "mobile",
     );
 
     return res.status(200).json({
@@ -515,7 +515,7 @@ export const sendEmailOTP = async (req: Request, res: Response) => {
       userId!,
       type,
       type.replace(/_/g, " ").toLowerCase(),
-      { email }
+      { email },
     );
 
     return res.status(200).json({

@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "Suraksha",
-    "slug": "Suraksha",
+    "name": "Aegis",
+    "slug": "Aegis",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "suraksha",
+    "scheme": "Aegis",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow Suraksha to access your location for safety features and emergency alerts.",
-        "NSLocationAlwaysUsageDescription": "Allow Suraksha to access your location even when the app is in the background for continuous safety monitoring.",
-        "NSLocationWhenInUseUsageDescription": "Allow Suraksha to access your location while using the app for safety features.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow Aegis to access your location for safety features and emergency alerts.",
+        "NSLocationAlwaysUsageDescription": "Allow Aegis to access your location even when the app is in the background for continuous safety monitoring.",
+        "NSLocationWhenInUseUsageDescription": "Allow Aegis to access your location while using the app for safety features.",
         "UIBackgroundModes": [
           "location",
           "fetch"
@@ -37,7 +37,7 @@
       "package": "com.suraksha.app",
       "config": {
         "googleMaps": {
-          "apiKey": "YOUR_API_KEY"
+          "apiKey": "AIzaSyCxJSb_tU0AFSFHCPkBhPNceVUNFjQecR0"
         }
       }
     },
@@ -51,9 +51,9 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Suraksha to access your location for safety features and emergency alerts.",
-          "locationAlwaysPermission": "Allow Suraksha to access your location even when the app is in the background for continuous safety monitoring.",
-          "locationWhenInUsePermission": "Allow Suraksha to access your location while using the app for safety features.",
+          "locationAlwaysAndWhenInUsePermission": "Allow Aegis to access your location for safety features and emergency alerts.",
+          "locationAlwaysPermission": "Allow Aegis to access your location even when the app is in the background for continuous safety monitoring.",
+          "locationWhenInUsePermission": "Allow Aegis to access your location while using the app for safety features.",
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
@@ -74,9 +74,11 @@
         "expo-maps",
         {
           "requestLocationPermission": true,
-          "locationPermission": "Allow Suraksha to access your location for safety features and emergency alerts."
+          "locationPermission": "Allow Aegis to access your location for safety features and emergency alerts.",
+          "googleMapsApiKey": "AIzaSyCxJSb_tU0AFSFHCPkBhPNceVUNFjQecR0"
         }
-      ]
+      ],
+      "expo-speech-recognition"
     ],
     "experiments": {
       "typedRoutes": true,

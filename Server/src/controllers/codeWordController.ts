@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import codeWordService from "../services/CodeWordService";
+import codeWordService from "../services/CodeWordService.ts";
 
 /**
  * Set code word for authenticated user
@@ -109,7 +109,7 @@ export const updateCodeWord = async (req: Request, res: Response) => {
     const result = await codeWordService.updateCodeWord(
       userId!,
       oldCodeWord,
-      newCodeWord
+      newCodeWord,
     );
 
     return res.status(result.success ? 200 : 400).json({

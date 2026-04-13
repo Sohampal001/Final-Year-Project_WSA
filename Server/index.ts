@@ -1,16 +1,16 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import { connectDatabase } from "./src/configs/database";
-import { smsRoute } from "./src/routes/smsRoute";
-import { otpRoute } from "./src/routes/otpRoute";
-import { userRoute } from "./src/routes/userRoute";
-import { onboardingRoute } from "./src/routes/onboardingRoute";
-import { codeWordRoute } from "./src/routes/codeWordRoute";
-import { trustedContactRoute } from "./src/routes/trustedContactRoute";
-import { locationRoute } from "./src/routes/locationRoute";
-import { requestLogger } from "./src/middlewares/requestLogger";
-import { nearbyPlacesRoute } from "./src/routes/nearbyPlacesRoute";
+import { connectDatabase } from "./src/configs/database.ts";
+import { smsRoute } from "./src/routes/smsRoute.ts";
+import { otpRoute } from "./src/routes/otpRoute.ts";
+import { userRoute } from "./src/routes/userRoute.ts";
+import { onboardingRoute } from "./src/routes/onboardingRoute.ts";
+import { codeWordRoute } from "./src/routes/codeWordRoute.ts";
+import { trustedContactRoute } from "./src/routes/trustedContactRoute.ts";
+import { locationRoute } from "./src/routes/locationRoute.ts";
+import { requestLogger } from "./src/middlewares/requestLogger.ts";
+import { nearbyPlacesRoute } from "./src/routes/nearbyPlacesRoute.ts";
 
 // Load environment variables
 dotenv.config();
@@ -36,8 +36,6 @@ app.use(requestLogger);
 app.get("/health", (req, res) => {
   res.status(200).json({
     status: "OK",
-    message: "Server is running",
-    timestamp: new Date().toISOString(),
   });
 });
 

@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import GooglePlacesService from "../services/GooglePlacesService";
+import GooglePlacesService from "../services/GooglePlacesService.ts";
 
 export class NearbyPlacesController {
   /**
@@ -35,7 +35,7 @@ export class NearbyPlacesController {
         lat,
         lon,
         rad,
-        limit
+        limit,
       );
 
       return res.status(200).json({

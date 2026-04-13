@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import onboardingService from "../services/OnboardingService";
+import onboardingService from "../services/OnboardingService.ts";
 
 /**
  * Add guardian
@@ -357,7 +357,7 @@ export const sendAadhaarOTP = async (req: Request, res: Response) => {
 
     const result = await onboardingService.sendAadhaarOTP(
       userId,
-      aadhaarNumber
+      aadhaarNumber,
     );
 
     return res.status(200).json({

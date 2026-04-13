@@ -1,17 +1,17 @@
 // app/(tabs)/home.tsx
 // @ts-nocheck
-import sendSMS from "@/api/smsApi";
 import {
-  getNearbyPlacesByCategory,
   getNearbyPlaces,
   NearbyPlace,
   formatDistance,
 } from "@/api/nearbyPlacesApi";
 import { useLocationStore } from "@/store/useLocationStore";
 import { useAuthStore } from "../../store/useAuthStore";
+import { useSafetyStore } from "../../store/useSafetyStore";
+import { triggerGlobalSos } from "../../services/sosOrchestrator";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Platform,
   SafeAreaView,
@@ -25,12 +25,19 @@ import {
   Linking,
   ActivityIndicator,
   Alert,
+  Image,
 } from "react-native";
 
 export default function HomeScreen() {
-  const [backgroundListen, setBackgroundListen] = useState(false);
+  const isBackgroundListening = useSafetyStore(
+    (state) => state.isBackgroundListening,
+  );
+  const toggleBackgroundListening = useSafetyStore(
+    (state) => state.toggleBackgroundListening,
+  );
+
   const [selectedPlaceType, setSelectedPlaceType] = useState<string | null>(
-    null
+    null,
   );
   const [nearbyPlaces, setNearbyPlaces] = useState<NearbyPlace[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -49,7 +56,7 @@ export default function HomeScreen() {
       if (!location?.lat || !location?.lon) {
         Alert.alert(
           "Location Required",
-          "Please enable location services to send emergency alerts."
+          "Please enable location services to send emergency alerts.",
         );
         return;
       }
@@ -68,7 +75,7 @@ export default function HomeScreen() {
               text: "Cancel",
               style: "cancel",
             },
-          ]
+          ],
         );
         return;
       }
@@ -88,41 +95,27 @@ export default function HomeScreen() {
             onPress: async () => {
               setSosLoading(true);
               try {
-                // Extract phone numbers from trusted contacts
-                const phoneNumbers = trustedContacts.map(
-                  (contact) => contact.mobile
+                // Trigger the generic offline SOS logic
+                await triggerGlobalSos();
+
+                Alert.alert(
+                  "✅ Alert Sent",
+                  "Emergency alerts successfully delivered/queued to contacts.",
+                  [{ text: "OK" }],
                 );
-
-                console.log("🚨 Sending SOS to contacts:", phoneNumbers);
-
-                const response = await sendSMS(location, phoneNumbers);
-
-                if (response.success) {
-                  Alert.alert(
-                    "✅ Alert Sent",
-                    `Emergency alerts sent to ${
-                      response.data?.smsCount || phoneNumbers.length
-                    } contacts${
-                      response.data?.emailSent ? " and guardian email" : ""
-                    }.`,
-                    [{ text: "OK" }]
-                  );
-                } else {
-                  throw new Error(response.message || "Failed to send alerts");
-                }
-              } catch (error) {
+              } catch (error: any) {
                 console.error("❌ SOS Error:", error);
                 Alert.alert(
                   "Error",
                   error.message ||
-                    "Failed to send emergency alerts. Please try again."
+                    "Failed to send emergency alerts. Please try again.",
                 );
               } finally {
                 setSosLoading(false);
               }
             },
           },
-        ]
+        ],
       );
     } catch (error) {
       console.error("Error in handlePress:", error);
@@ -155,7 +148,7 @@ export default function HomeScreen() {
         location.longitude,
         typeMap[type],
         5000,
-        10
+        10,
       );
       setNearbyPlaces(places);
     } catch (error: any) {
@@ -193,14 +186,14 @@ export default function HomeScreen() {
         <View style={styles.homeHeaderInner}>
           <View style={styles.rowCenter}>
             <View style={styles.homeLogoBox}>
-              <MaterialCommunityIcons
-                name="shield-check"
-                size={28}
-                color="#ffffff"
+              <Image
+                source={require("../../assets/images/logo.png")}
+                style={styles.homeLogoImage}
+                resizeMode="contain"
               />
             </View>
             <View>
-              <Text style={styles.homeTitle}>Suraksha – The Safety App</Text>
+              <Text style={styles.homeTitle}>Aegis – The Safety App</Text>
               <Text style={styles.homeSubtitle}>Stay Safe, Stay Connected</Text>
             </View>
           </View>
@@ -299,16 +292,24 @@ export default function HomeScreen() {
               </View>
             </View>
             <TouchableOpacity
-              onPress={() => setBackgroundListen(!backgroundListen)}
+              onPress={() => toggleBackgroundListening(!isBackgroundListening)}
               style={[
                 styles.toggleOuter,
-                { backgroundColor: backgroundListen ? "#0f766e" : "#d1d5db" },
+                {
+                  backgroundColor: isBackgroundListening
+                    ? "#0f766e"
+                    : "#d1d5db",
+                },
               ]}
             >
               <View
                 style={[
                   styles.toggleInner,
-                  { alignSelf: backgroundListen ? "flex-end" : "flex-start" },
+                  {
+                    alignSelf: isBackgroundListening
+                      ? "flex-end"
+                      : "flex-start",
+                  },
                 ]}
               />
             </TouchableOpacity>
@@ -482,7 +483,7 @@ export default function HomeScreen() {
                         onPress={() =>
                           handleDirections(
                             place.location.lat,
-                            place.location.lng
+                            place.location.lng,
                           )
                         }
                       >
@@ -598,10 +599,14 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 8,
+  },
+  homeLogoImage: {
+    width: 46,
+    height: 46,
   },
   homeTitle: {
     fontSize: 16,

@@ -14,8 +14,8 @@ import {
   checkUserExists,
   sendEmailOTP,
   verifyEmailOTP,
-} from "../controllers/userController";
-import { authenticate, authorize } from "../middlewares/auth";
+} from "../controllers/userController.ts";
+import { authenticate, authorize } from "../middlewares/auth.ts";
 
 const router = express.Router();
 

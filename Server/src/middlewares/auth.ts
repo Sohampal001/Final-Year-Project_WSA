@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { User } from "../models/User";
+import { User } from "../models/User.ts";
 import { Types } from "mongoose";
 
 // Extend Express Request type to include user
@@ -46,7 +46,7 @@ export const verifyToken = (token: string): any => {
 export const authenticate = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     // Get token from Authorization header
@@ -119,7 +119,7 @@ export const authorize = (
 
       // Check if user has at least one of the allowed roles
       const hasRole = req.user.roles.some((role) =>
-        allowedRoles.includes(role)
+        allowedRoles.includes(role),
       );
 
       if (!hasRole) {
@@ -187,7 +187,7 @@ export const checkOwnership = (resourceUserIdField: string = "userId") => {
 export const optionalAuth = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const authHeader = req.headers.authorization;

@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { LocationController } from "../controllers/locationController";
-import { authenticate } from "../middlewares/auth";
+import { LocationController } from "../controllers/locationController.ts";
+import { authenticate } from "../middlewares/auth.ts";
 
 const router = Router();
 

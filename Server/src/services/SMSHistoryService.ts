@@ -1,4 +1,4 @@
-import { SMSHistory, type ISMSHistory } from "../models/SMSHistory";
+import { SMSHistory, type ISMSHistory } from "../models/SMSHistory.ts";
 import mongoose from "mongoose";
 
 interface SaveSMSHistoryParams {
@@ -24,10 +24,32 @@ interface SaveSMSHistoryParams {
 
 export class SMSHistoryService {
   /**
+   * Get the latest successful SMS in the last N seconds
+   */
+  static async getLastSuccessfulSMSWithinSeconds(
+    userId: string,
+    seconds: number = 30,
+  ): Promise<ISMSHistory | null> {
+    try {
+      const since = new Date(Date.now() - seconds * 1000);
+      const sms = await SMSHistory.findOne({
+        userId,
+        status: "sent",
+        sentAt: { $gte: since },
+      }).sort({ sentAt: -1 });
+
+      return sms;
+    } catch (error) {
+      console.error("❌ Error fetching last successful SMS:", error);
+      return null;
+    }
+  }
+
+  /**
    * Save SMS history to database
    */
   static async saveSMSHistory(
-    params: SaveSMSHistoryParams
+    params: SaveSMSHistoryParams,
   ): Promise<ISMSHistory> {
     try {
       const smsHistory = new SMSHistory({
@@ -58,7 +80,7 @@ export class SMSHistoryService {
    */
   static async getSMSHistory(
     userId: string,
-    limit: number = 50
+    limit: number = 50,
   ): Promise<ISMSHistory[]> {
     try {
       const history = await SMSHistory.find({ userId })
@@ -76,7 +98,7 @@ export class SMSHistoryService {
    */
   static async getRecentSMSCount(
     userId: string,
-    hours: number = 24
+    hours: number = 24,
   ): Promise<number> {
     try {
       const since = new Date(Date.now() - hours * 60 * 60 * 1000);
@@ -96,7 +118,7 @@ export class SMSHistoryService {
    */
   static async canSendSMS(
     userId: string,
-    maxPerHour: number = 10
+    maxPerHour: number = 10,
   ): Promise<boolean> {
     try {
       const count = await this.getRecentSMSCount(userId, 1);

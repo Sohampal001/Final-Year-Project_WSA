@@ -1,11 +1,11 @@
 {
-  "name": "suraksha-server",
+  "name": "Aegis-server",
   "version": "1.0.0",
   "description": "",
   "license": "ISC",
   "author": "Surya Ghosh",
   "type": "module",
-  "main": "index.ts",
+  "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch index.ts",
     "build": "tsc",

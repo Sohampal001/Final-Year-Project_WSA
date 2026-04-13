@@ -651,7 +651,7 @@ export default function SignUpScreen() {
             <Input
               label="Code Word"
               icon="lock-closed-outline"
-              placeholder="Example: helpme"
+              placeholder="Example: help me"
               value={codeWord}
               onChangeText={setCodeWord}
             />
