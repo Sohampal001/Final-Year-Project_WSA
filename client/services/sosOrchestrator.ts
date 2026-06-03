@@ -2,9 +2,13 @@ import sendSMS from "@/api/smsApi";
 import { useLocationStore } from "@/store/useLocationStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { startSurroundingsRecording } from "./sosAudioService";
 
 // Queue for offline resilience
-export const storeFailedSosRequest = async (phoneNumbers: string[], location: any) => {
+export const storeFailedSosRequest = async (
+  phoneNumbers: string[],
+  location: any,
+) => {
   try {
     const queueItem = { phoneNumbers, location, timestamp: Date.now() };
     const queue = await AsyncStorage.getItem("failedSosQueue");
@@ -17,7 +21,6 @@ export const storeFailedSosRequest = async (phoneNumbers: string[], location: an
 };
 
 export const processFailedRequests = async () => {
-  // Basic retry mechanism - this would ideally be called on network status change
   try {
     const queue = await AsyncStorage.getItem("failedSosQueue");
     if (!queue) return;
@@ -33,17 +36,22 @@ export const processFailedRequests = async () => {
         } else {
           remainingQueue.push(item);
         }
-      } catch (e) {
+      } catch {
         remainingQueue.push(item);
       }
     }
-    await AsyncStorage.setItem("failedSosQueue", JSON.stringify(remainingQueue));
+    await AsyncStorage.setItem(
+      "failedSosQueue",
+      JSON.stringify(remainingQueue),
+    );
   } catch (e) {
     console.error("Failed to process queue:", e);
   }
 };
 
-export const triggerGlobalSos = async (): Promise<boolean> => {
+export const triggerGlobalSos = async (
+  triggerType: "VOICE" | "BUTTON" = "VOICE",
+): Promise<boolean> => {
   const authStore = useAuthStore.getState();
   const location = useLocationStore.getState().location;
 
@@ -56,18 +64,34 @@ export const triggerGlobalSos = async (): Promise<boolean> => {
     return false;
   }
 
-  const phoneNumbers = authStore.trustedContacts.map(c => c.mobile);
+  const phoneNumbers = authStore.trustedContacts.map((c) => c.mobile);
 
   try {
     const response = await sendSMS(location as any, phoneNumbers);
     if (!response.success) {
       throw new Error("Backend failed to send SMS");
     }
+
+    // Fire-and-forget: record surroundings after a successful SOS
+    startSurroundingsRecording(triggerType).catch((e) =>
+      console.error("[SosOrchestrator] Surroundings recording error:", e),
+    );
+
     return true;
   } catch (error) {
     console.error("SOS Trigger Error:", error);
-    // Queue locally if it fails
+
+    // Queue locally if it fails, then still attempt surroundings recording
     await storeFailedSosRequest(phoneNumbers, location);
+
+    // Also record surroundings even on failure — the alert still went out locally
+    startSurroundingsRecording(triggerType).catch((e) =>
+      console.error(
+        "[SosOrchestrator] Surroundings recording error (queued path):",
+        e,
+      ),
+    );
+
     // Throw so caller knows it failed synchronously
     throw error;
   }

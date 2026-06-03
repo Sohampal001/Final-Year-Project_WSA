@@ -1,8 +1,5 @@
 import { useEffect, useRef } from "react";
-import {
-  useSpeechRecognitionEvent,
-  ExpoSpeechRecognitionModule,
-} from "expo-speech-recognition";
+import { useSpeechRecognitionEvent } from "expo-speech-recognition";
 import { useSafetyStore } from "../store/useSafetyStore";
 import {
   triggerNotification,
@@ -10,15 +7,19 @@ import {
   startBackgroundListener,
   startForegroundListener,
   stopForegroundListener,
-  getSpeechRecognitionOptions,
+  startRecording,
+  setServiceSosProcessing,
+  getIsSosProcessing,
 } from "../services/audioListenerService";
+import { isRecordingSurroundings } from "../services/sosAudioService";
 
 export const useGlobalAudioListener = (triggerSos: () => Promise<void>) => {
   const isBackgroundListening = useSafetyStore(
     (state) => state.isBackgroundListening,
   );
   const verifyCodeword = useSafetyStore((state) => state.verifyCodeword);
-  const isProcessingSos = useRef(false);
+
+  // Local refs for codeword matching logic
   const matchTimestamps = useRef<number[]>([]);
   const lastMatchedSignature = useRef<string>("");
   const lastMatchedAt = useRef<number>(0);
@@ -28,7 +29,6 @@ export const useGlobalAudioListener = (triggerSos: () => Promise<void>) => {
     if (phraseWords.length === 0 || words.length < phraseWords.length) {
       return false;
     }
-
     for (let i = 0; i <= words.length - phraseWords.length; i++) {
       let isSame = true;
       for (let j = 0; j < phraseWords.length; j++) {
@@ -39,11 +39,10 @@ export const useGlobalAudioListener = (triggerSos: () => Promise<void>) => {
       }
       if (isSame) return true;
     }
-
     return false;
   };
 
-  // Start the foreground listener for the active app session.
+  // Start the foreground listener when the component mounts.
   useEffect(() => {
     startForegroundListener();
     return () => {
@@ -58,20 +57,28 @@ export const useGlobalAudioListener = (triggerSos: () => Promise<void>) => {
     } else {
       stopBackgroundListener();
     }
-
     return () => {
       stopBackgroundListener();
     };
   }, [isBackgroundListening]);
 
-  // Handle speech results
+  // ─── Speech result handler ────────────────────────────────────────────────
+
   useSpeechRecognitionEvent("result", async (event: any) => {
+    // Feature 2: block codeword detection while surroundings are being recorded
+    if (isRecordingSurroundings()) {
+      console.log(
+        "[AudioListener] Surroundings recording active — ignoring transcript.",
+      );
+      return;
+    }
+
     const results = event.results;
     if (!results || results.length === 0) return;
 
     const transcript = String(results[0].transcript || "").toLowerCase();
-
     console.log("[AudioListener] Transcript:", transcript);
+
     const words = transcript
       .split(/\s+/)
       .map((word: string) => word.replace(/[^\w]/gi, ""))
@@ -82,7 +89,7 @@ export const useGlobalAudioListener = (triggerSos: () => Promise<void>) => {
     let isMatch = false;
     let matchedSignature = "";
 
-    // Fast path: once discovered, match this phrase in any longer transcript.
+    // Fast path: re-use cached phrase.
     if (knownCodewordPhrase.current) {
       const phraseWords = knownCodewordPhrase.current.split(" ");
       if (containsPhrase(words, phraseWords)) {
@@ -91,7 +98,7 @@ export const useGlobalAudioListener = (triggerSos: () => Promise<void>) => {
       }
     }
 
-    // Discovery path: find the phrase once and cache it.
+    // Discovery path.
     if (
       !isMatch &&
       normalizedTranscript &&
@@ -121,7 +128,7 @@ export const useGlobalAudioListener = (triggerSos: () => Promise<void>) => {
 
     const now = Date.now();
 
-    // Prevent duplicate counting from rapid interim duplicate events.
+    // Debounce rapid interim duplicates.
     if (
       matchedSignature === lastMatchedSignature.current &&
       now - lastMatchedAt.current < 800
@@ -131,126 +138,83 @@ export const useGlobalAudioListener = (triggerSos: () => Promise<void>) => {
 
     lastMatchedSignature.current = matchedSignature;
     lastMatchedAt.current = now;
-
     matchTimestamps.current.push(now);
 
-    // Keep only matches from last 5 seconds.
+    // Keep only matches from the last 5 seconds.
     const cutoff = now - 5000;
     matchTimestamps.current = matchTimestamps.current.filter(
-      (timestamp) => timestamp >= cutoff,
+      (ts) => ts >= cutoff,
     );
 
     const matchCount = matchTimestamps.current.length;
-
     console.log(
       `[AudioListener] Codeword matched ${matchCount}/3 in last 5 seconds.`,
     );
 
-    if (matchCount >= 3) {
-      console.log(
-        "🚨 CODEWORD DETECTED 3 TIMES IN 5 SECONDS! Triggering SOS... 🚨",
-      );
+    if (matchCount < 3) return;
 
-      if (isProcessingSos.current) {
-        console.log("Already processing SOS. Cooldown active.");
-        return;
-      }
-
-      isProcessingSos.current = true;
-      triggerNotification(
-        "SOS Activated!",
-        "Voice trigger detected. Sending emergency alerts.",
-      );
-
-      try {
-        await triggerSos();
-        console.log("✅ Voice SOS trigger completed successfully");
-        triggerNotification(
-          "SOS Sent Successfully",
-          "Your emergency contacts have been notified with your location.",
-        );
-      } catch (e) {
-        console.error("❌ Voice SOS trigger failed:", e);
-        triggerNotification(
-          "Background SOS Error",
-          "We couldn't instantly send the alert. It is queued locally and will retry offline.",
-        );
-      } finally {
-        // Reset state and cooldown for next trigger
-        setTimeout(() => {
-          console.log("🔄 Resetting SOS state for next trigger...");
-          isProcessingSos.current = false;
-          matchTimestamps.current = [];
-          lastMatchedSignature.current = "";
-          lastMatchedAt.current = 0;
-          knownCodewordPhrase.current = null; // Reset phrase cache to allow re-discovery
-
-          // Restart speech recognition if still active
-          console.log("🎤 Restarting speech recognition...");
-          try {
-            ExpoSpeechRecognitionModule.start(getSpeechRecognitionOptions());
-          } catch (e: any) {
-            console.error("Failed to restart recognition:", e);
-            // Retry after a delay
-            setTimeout(() => {
-              try {
-                ExpoSpeechRecognitionModule.start(
-                  getSpeechRecognitionOptions(),
-                );
-              } catch (err: any) {
-                console.error("Final restart attempt failed:", err);
-              }
-            }, 1000);
-          }
-        }, 5000);
-      }
+    // Guard: only one SOS at a time.
+    if (getIsSosProcessing()) {
+      console.log("[AudioListener] Already processing SOS. Cooldown active.");
+      return;
     }
-  });
 
-  useSpeechRecognitionEvent("end", () => {
-    // Keep recognition alive while app listener is active.
     console.log(
-      `[AudioListener] End event fired. isProcessingSos=${isProcessingSos.current}`,
+      "🚨 CODEWORD DETECTED 3 TIMES IN 5 SECONDS! Triggering SOS... 🚨",
     );
 
-    if (!isProcessingSos.current) {
-      // Small timeout to prevent aggressive loop
-      setTimeout(() => {
-        console.log(
-          "[AudioListener] Restarting recognition after end event...",
-        );
-        try {
-          ExpoSpeechRecognitionModule.start(getSpeechRecognitionOptions());
-        } catch (e: any) {
-          console.error("[AudioListener] Failed to restart after end:", e);
-        }
-      }, 500);
-    } else {
-      console.log(
-        "[AudioListener] SOS processing active - will restart after cooldown",
+    // Raise the flag in the service layer so the health-check loop and the
+    // end/error handlers both know not to restart the engine mid-SOS.
+    setServiceSosProcessing(true);
+
+    triggerNotification(
+      "SOS Activated!",
+      "Voice trigger detected. Sending emergency alerts.",
+    );
+
+    try {
+      await triggerSos();
+      console.log("✅ Voice SOS trigger completed successfully");
+      triggerNotification(
+        "SOS Sent Successfully",
+        "Your emergency contacts have been notified with your location.",
       );
+    } catch (e) {
+      console.error("❌ Voice SOS trigger failed:", e);
+      triggerNotification(
+        "Background SOS Error",
+        "We couldn't instantly send the alert. It is queued locally and will retry offline.",
+      );
+    } finally {
+      // After the cooldown, clear the flag and let the service restart the engine.
+      setTimeout(() => {
+        console.log("🔄 Resetting SOS state for next trigger...");
+
+        // Reset local codeword matching state.
+        matchTimestamps.current = [];
+        lastMatchedSignature.current = "";
+        lastMatchedAt.current = 0;
+        knownCodewordPhrase.current = null;
+
+        // Lower the flag BEFORE scheduling the restart so the service layer
+        // is ready to accept it — covers both foreground and background paths.
+        setServiceSosProcessing(false);
+
+        console.log("🎤 Restarting speech recognition after SOS cooldown...");
+        startRecording().catch((e: any) => {
+          console.error("Post-SOS restart failed, retrying in 2s:", e);
+          setTimeout(() => startRecording(), 2000);
+        });
+      }, 5000);
     }
   });
 
-  useSpeechRecognitionEvent("error", (event: any) => {
-    console.log("[AudioListener] Speech Error:", event.error);
-    // 7 is match error (no speech) - common and can be ignored
-    // Restart listening anyway to keep the engine alive
-    if (!isProcessingSos.current) {
-      setTimeout(() => {
-        console.log(
-          "[AudioListener] Restarting recognition after error event...",
-        );
-        try {
-          ExpoSpeechRecognitionModule.start(getSpeechRecognitionOptions());
-        } catch (e: any) {
-          console.error("[AudioListener] Failed to restart after error:", e);
-        }
-      }, 1000);
-    } else {
-      console.log(
-        "[AudioListener] SOS processing active - skipping restart on error",
-      );
-    }
+  // End / error events: service layer owns all restarts silently.
+  useSpeechRecognitionEvent("end", () => {
+    // no-op: service-level listeners handle restart
+  });
+
+  useSpeechRecognitionEvent("error", (_event: any) => {
+    // no-op: service-level listeners handle restart
   });
 };
