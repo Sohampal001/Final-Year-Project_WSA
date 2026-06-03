@@ -2,10 +2,10 @@ import mongoose from "mongoose";
 
 export const connectDatabase = async (): Promise<void> => {
   try {
-    const MONGODB_URI =
-      process.env.NODE_ENV! === "production"
-        ? process.env.MONGODB_URI!
-        : "mongodb://localhost:27017/suraksha";
+    const MONGODB_URI = process.env.MONGODB_URI!;
+    process.env.NODE_ENV! === "production"
+      ? process.env.MONGODB_URI!
+      : "mongodb://127.0.0.1:27017/suraksha";
 
     // MongoDB connection options
     const options = {

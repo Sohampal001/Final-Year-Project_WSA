@@ -11,6 +11,7 @@ import { trustedContactRoute } from "./src/routes/trustedContactRoute.ts";
 import { locationRoute } from "./src/routes/locationRoute.ts";
 import { requestLogger } from "./src/middlewares/requestLogger.ts";
 import { nearbyPlacesRoute } from "./src/routes/nearbyPlacesRoute.ts";
+import { audioRoute } from "./src/routes/audioRoute.ts";
 import { homeRoute } from "./src/routes/homeRoute.ts";
 
 // Load environment variables
@@ -49,6 +50,7 @@ app.use("/api/codeword", codeWordRoute);
 app.use("/api/trusted-contacts", trustedContactRoute);
 app.use("/api/location", locationRoute);
 app.use("/api/nearby-places", nearbyPlacesRoute);
+app.use("/api/audio", audioRoute);
 app.use("/api/home", homeRoute);
 
 // 404 handler

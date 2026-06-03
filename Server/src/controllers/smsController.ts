@@ -128,13 +128,23 @@ Please check on them immediately or call emergency services.`;
     console.log("📝 SMS Message created, length:", message.length);
     console.log("📝 Message preview:", message.substring(0, 100) + "...");
 
-    // Send SMS to all trusted contacts
-    console.log("📤 Calling SMS service...");
-    const smsResponse = await FAST2SMS.sendMessage(message, numbersArray);
-    console.log(
-      "📤 SMS Service Response:",
-      JSON.stringify(smsResponse, null, 2),
-    );
+    // In development mode, skip Fast2SMS and only send email
+    const isProd = process.env.NODE_ENV === "production";
+    let smsResponse: { sent: boolean; request_id?: string };
+
+    if (!isProd) {
+      console.log("🛠️ Development mode — skipping Fast2SMS, email only.");
+      console.log("📵 Would have sent SMS to:", numbersArray);
+      smsResponse = { sent: true, request_id: `dev-${Date.now()}` };
+    } else {
+      // Send SMS to all trusted contacts
+      console.log("📤 Calling SMS service...");
+      smsResponse = await FAST2SMS.sendMessage(message, numbersArray);
+      console.log(
+        "📤 SMS Service Response:",
+        JSON.stringify(smsResponse, null, 2),
+      );
+    }
 
     // Fetch guardian email for email notification
     let guardianEmail: string | undefined;
@@ -153,6 +163,7 @@ Please check on them immediately or call emergency services.`;
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background-color: #dc2626; color: white; padding: 20px; text-align: center;">
               <h1>🚨 EMERGENCY ALERT</h1>
+              ${!isProd ? `<p style="background:#b91c1c;padding:6px 12px;border-radius:4px;font-size:13px;">⚠️ DEV MODE — SMS skipped. Email only.</p>` : ""}
             </div>
             <div style="padding: 20px; background-color: #f9fafb;">
               <h2>${user.name} has triggered an emergency SOS!</h2>
@@ -214,7 +225,7 @@ Please check on them immediately or call emergency services.`;
         googleMapsLink: location,
       },
       status,
-      requestId: smsResponse?.request_id,
+      requestId: smsResponse?.request_id ?? `dev-${Date.now()}`,
       userDetails: {
         name: user.name,
         mobile: user.mobile || "",
