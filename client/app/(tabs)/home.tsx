@@ -5,6 +5,10 @@ import { useAuthStore } from "../../store/useAuthStore";
 import { useSafetyStore } from "../../store/useSafetyStore";
 import { useHomeBootstrapStore } from "../../store/useHomeBootstrapStore";
 import { triggerGlobalSos } from "../../services/sosOrchestrator";
+import {
+  openBatteryOptimizationSettings,
+  promptDisableBatteryOptimization,
+} from "../../services/batteryOptimizationService";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { AppleMaps, GoogleMaps } from "expo-maps";
@@ -449,7 +453,13 @@ export default function HomeScreen() {
               <Text style={styles.listenTitle}>Background Listen</Text>
             </View>
             <TouchableOpacity
-              onPress={() => toggleBackgroundListening(!isBackgroundListening)}
+              onPress={() => {
+                const next = !isBackgroundListening;
+                toggleBackgroundListening(next);
+                if (next) {
+                  promptDisableBatteryOptimization();
+                }
+              }}
               style={[
                 styles.toggleOuter,
                 {
@@ -467,6 +477,17 @@ export default function HomeScreen() {
               />
             </TouchableOpacity>
           </View>
+          {isBackgroundListening && Platform.OS === "android" && (
+            <TouchableOpacity
+              onPress={openBatteryOptimizationSettings}
+              style={styles.batteryLinkRow}
+            >
+              <Ionicons name="battery-charging-outline" size={14} color="#0f766e" />
+              <Text style={styles.batteryLinkText}>
+                Fix background reliability (battery settings)
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.sosSection}>
@@ -752,6 +773,20 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     backgroundColor: "#ffffff",
+  },
+  batteryLinkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 6,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: "#bfdbfe",
+  },
+  batteryLinkText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#0f766e",
   },
   sosSection: {
     alignItems: "center",

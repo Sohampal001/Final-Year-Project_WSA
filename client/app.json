@@ -15,6 +15,7 @@
         "NSLocationWhenInUseUsageDescription": "Allow Aegis to access your location while using the app for safety features.",
         "UIBackgroundModes": [
           "location",
+          "audio",
           "fetch"
         ],
         "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
@@ -90,7 +91,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "f3f1f7c1-c713-4739-a1d3-4822d0a28935"
+        "projectId": "ae97bf9e-d180-4300-8c4f-540146be8972"
       }
     }
   }

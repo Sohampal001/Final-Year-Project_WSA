@@ -8,7 +8,29 @@ let isRecognitionActive = false;
 let isForegroundServiceActive = false;
 let serviceEndSubscription: any = null;
 let serviceErrorSubscription: any = null;
+let sosButtonSubscription: any = null;
 let isSosProcessing = false;
+let pendingRestartTimer: ReturnType<typeof setTimeout> | null = null;
+
+// ─── Single-source restart scheduling ─────────────────────────────────────────
+// "end", "error" and the health-check task can all observe a dead engine at
+// nearly the same time. Without this, each would schedule its own restart and
+// the resulting overlapping start() calls fight each other, so the codeword
+// listener keeps dropping instead of staying on continuously.
+
+const scheduleRestart = (delay: number) => {
+  if (pendingRestartTimer) {
+    clearTimeout(pendingRestartTimer);
+  }
+  pendingRestartTimer = setTimeout(() => {
+    pendingRestartTimer = null;
+    if (isRecognitionActive && !isSosProcessing) {
+      startRecording().catch((e) =>
+        console.log("[Service] Scheduled restart failed:", e),
+      );
+    }
+  }, delay);
+};
 
 // ─── SOS processing flag ──────────────────────────────────────────────────────
 
@@ -42,13 +64,7 @@ const attachServiceListeners = () => {
     "end",
     () => {
       if (!isRecognitionActive || isSosProcessing) return;
-      setTimeout(() => {
-        if (isRecognitionActive && !isSosProcessing) {
-          startRecording().catch((e) =>
-            console.log("[Service] Restart after end failed:", e),
-          );
-        }
-      }, 500);
+      scheduleRestart(500);
     },
   );
 
@@ -56,13 +72,7 @@ const attachServiceListeners = () => {
     "error",
     () => {
       if (!isRecognitionActive || isSosProcessing) return;
-      setTimeout(() => {
-        if (isRecognitionActive && !isSosProcessing) {
-          startRecording().catch((e) =>
-            console.log("[Service] Restart after error failed:", e),
-          );
-        }
-      }, 1000);
+      scheduleRestart(1000);
     },
   );
 };
@@ -89,6 +99,10 @@ export const stopForegroundListener = () => {
   console.log("[AudioService] Stopping foreground speech listener...");
   isRecognitionActive = false;
   isSosProcessing = false;
+  if (pendingRestartTimer) {
+    clearTimeout(pendingRestartTimer);
+    pendingRestartTimer = null;
+  }
   detachServiceListeners();
   ExpoSpeechRecognitionModule.stop();
 };
@@ -98,12 +112,17 @@ export const stopForegroundListener = () => {
 const startAndroidForegroundService = async () => {
   if (Platform.OS !== "android" || isForegroundServiceActive) return;
 
-  DeviceEventEmitter.addListener("triggerSOS", () => {
-    console.log("[AudioService] SOS triggered from notification button.");
-    triggerGlobalSos().catch((e) =>
-      console.error("[AudioService] Notification SOS failed:", e),
+  if (!sosButtonSubscription) {
+    sosButtonSubscription = DeviceEventEmitter.addListener(
+      "triggerSOS",
+      () => {
+        console.log("[AudioService] SOS triggered from notification button.");
+        triggerGlobalSos().catch((e) =>
+          console.error("[AudioService] Notification SOS failed:", e),
+        );
+      },
     );
-  });
+  }
 
   try {
     ReactNativeForegroundService.add_task(
@@ -119,13 +138,7 @@ const startAndroidForegroundService = async () => {
           }
         } catch (e) {
           console.log("[AudioService] Health check error:", e);
-          setTimeout(() => {
-            if (isRecognitionActive && !isSosProcessing) {
-              startRecording().catch((err) =>
-                console.log("[AudioService] Health check restart failed:", err),
-              );
-            }
-          }, 2000);
+          scheduleRestart(2000);
         }
       },
       {
@@ -146,8 +159,10 @@ const startAndroidForegroundService = async () => {
       buttonOnPress: "triggerSOS",
       setOnlyAlertOnce: true,
       color: "#dc2626",
-      // Required on Android 14+ (API 34+)
-      serviceType: "microphone",
+      // Required on Android 14+ (API 34+) - lib expects the capitalized
+      // "ServiceType" key; "serviceType" is silently ignored and throws
+      // "ForegroundService: ServiceType is required".
+      ServiceType: "microphone",
     } as any);
 
     isForegroundServiceActive = true;
@@ -172,6 +187,8 @@ export const stopBackgroundListener = () => {
     ReactNativeForegroundService.stop();
     isForegroundServiceActive = false;
   }
+  sosButtonSubscription?.remove();
+  sosButtonSubscription = null;
   if (isRecognitionActive) {
     stopForegroundListener();
   }
@@ -183,6 +200,14 @@ export const startRecording = async () => {
   if (!isRecognitionActive) return;
 
   try {
+    // Guard against overlapping start() calls: "end"/"error"/health-check can
+    // all reach here around the same time. Starting an already-running engine
+    // throws natively and kills the session that WAS working, so bail out.
+    const currentState = await ExpoSpeechRecognitionModule.getStateAsync();
+    if (currentState !== "inactive") {
+      return;
+    }
+
     const { granted } =
       await ExpoSpeechRecognitionModule.requestPermissionsAsync();
 
@@ -205,11 +230,7 @@ export const startRecording = async () => {
       "Speech Engine Error",
       "The background listener encountered a failure. Automatically restarting...",
     );
-    setTimeout(() => {
-      if (isRecognitionActive && !isSosProcessing) {
-        startRecording();
-      }
-    }, 3000);
+    scheduleRestart(3000);
   }
 };
 
