@@ -247,21 +247,28 @@ Please check on them immediately or call emergency services.`;
 
     console.log("✅ SMS history saved to database");
 
-    if (smsResponse?.sent) {
-      console.log("🎉 SMS sent successfully!");
-      console.log("📊 Response data:", {
-        smsCount: numbersArray.length,
+    // Treat the SOS as successful if SMS went out, OR the guardian email went
+    // out, OR SMS is intentionally disabled (SEND_SMS !== "true"). Only a real
+    // failure (SMS enabled but send failed, and no email) returns an error — so
+    // disabling SMS never makes the app report a failed SOS.
+    const alertDispatched = smsResponse?.sent || emailSent || !SEND_SMS;
+
+    if (alertDispatched) {
+      console.log("🎉 Emergency alert dispatched.", {
+        smsSent: !!smsResponse?.sent,
         emailSent,
-        requestId: smsResponse.request_id,
+        smsDisabled: !SEND_SMS,
       });
       return res.status(200).json({
         success: true,
-        sent: true,
-        message: "Emergency alerts sent successfully",
+        sent: !!smsResponse?.sent,
+        message: smsResponse?.sent
+          ? "Emergency alerts sent successfully"
+          : "Emergency alert dispatched (SMS disabled — email/push used)",
         data: {
-          smsCount: numbersArray.length,
+          smsCount: smsResponse?.sent ? numbersArray.length : 0,
           emailSent,
-          requestId: smsResponse.request_id,
+          requestId: smsResponse?.request_id,
         },
       });
     } else {

@@ -13,7 +13,8 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { AppleMaps, GoogleMaps } from "expo-maps";
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import * as Location from "expo-location";
 import {
   Platform,
   SafeAreaView,
@@ -178,7 +179,49 @@ export default function HomeScreen() {
     Alert.alert("Error", "Phone number not available");
   };
 
-  const locationLabel = getShortLocationLabel(user);
+  // Show the CURRENT location: reverse-geocode live GPS coords into a readable
+  // label; fall back to raw lat/long, then to a placeholder. Never the profile
+  // home/work address.
+  const [geoLabel, setGeoLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    const lat = location?.lat;
+    const lon = location?.lon;
+    if (typeof lat !== "number" || typeof lon !== "number") {
+      setGeoLabel(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const results = await Location.reverseGeocodeAsync({
+          latitude: lat,
+          longitude: lon,
+        });
+        const p = results?.[0];
+        if (!cancelled && p) {
+          const label = [
+            p.name || p.street,
+            p.district || p.subregion || p.city,
+          ]
+            .filter(Boolean)
+            .join(", ");
+          setGeoLabel(label || null);
+        }
+      } catch {
+        if (!cancelled) setGeoLabel(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [location?.lat, location?.lon]);
+
+  const locationLabel =
+    geoLabel ||
+    (typeof location?.lat === "number" && typeof location?.lon === "number"
+      ? `${location.lat.toFixed(5)}, ${location.lon.toFixed(5)}`
+      : "Locating your position…");
   const nearbyUserCount = nearbyUsers?.length || 0;
 
   const onRefresh = async () => {
