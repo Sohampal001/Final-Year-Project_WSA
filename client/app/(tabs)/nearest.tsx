@@ -289,13 +289,11 @@ export default function NearestUserScreen() {
     );
   };
 
-  const callUser = async (mobile?: string) => {
+  const callUser = (mobile?: string) => {
     if (!mobile) return;
-    const url = `tel:${mobile}`;
-    const canOpen = await Linking.canOpenURL(url);
-    if (canOpen) {
-      await Linking.openURL(url);
-    }
+    // Open the dialer directly — canOpenURL("tel:") returns false on Android
+    // 11+ unless the scheme is in the manifest <queries>, silently blocking it.
+    Linking.openURL(`tel:${String(mobile).replace(/\s+/g, "")}`).catch(() => {});
   };
 
   const renderUserCard = ({ item, index }) => {

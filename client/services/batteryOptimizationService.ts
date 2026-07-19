@@ -2,7 +2,7 @@ import { Platform, Linking, Alert } from "react-native";
 
 /**
  * Opens the OS battery-optimization settings screen so the user can
- * whitelist Aegis. Android kills background foreground-services on
+ * whitelist Raksha. Android kills background foreground-services on
  * aggressive OEM battery managers (Xiaomi/Oppo/Vivo/etc.) regardless of
  * how correct the JS-side listener/restart logic is - only an OS-level
  * exemption fixes that, this just gets the user to the right screen.
@@ -11,7 +11,9 @@ export const openBatteryOptimizationSettings = async (): Promise<void> => {
   if (Platform.OS !== "android") return;
 
   try {
-    await Linking.sendIntent("android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS");
+    await Linking.sendIntent(
+      "android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS",
+    );
   } catch (e) {
     console.log(
       "[BatteryOptimization] Settings screen intent failed, falling back:",
@@ -34,7 +36,7 @@ export const promptDisableBatteryOptimization = (): void => {
 
   Alert.alert(
     "Keep Background Listening Reliable",
-    "Some phone makers (Xiaomi, Oppo, Vivo, etc.) stop apps running in the background to save battery. To make sure Aegis keeps listening for your codeword when the app is closed or the screen is off, disable battery optimization for Aegis, and if your phone has an \"Autostart\" or \"App battery saver\" list, allow Aegis there too.",
+    'Some phone makers (Xiaomi, Oppo, Vivo, etc.) stop apps running in the background to save battery. To make sure Raksha keeps listening for your codeword when the app is closed or the screen is off, disable battery optimization for Raksha, and if your phone has an "Autostart" or "App battery saver" list, allow Raksha there too.',
     [
       {
         text: "Open Settings",

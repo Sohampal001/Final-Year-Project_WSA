@@ -267,7 +267,7 @@ export const startBackgroundLocationUpdates = async (): Promise<boolean> => {
         distanceInterval: 5, // Or every 5 meters
         showsBackgroundLocationIndicator: true,
         foregroundService: {
-          notificationTitle: "Aegis Safety Monitoring",
+          notificationTitle: "Raksha Safety Monitoring",
           notificationBody: "Location tracking active for your safety",
           notificationColor: "#06b6d4",
         },

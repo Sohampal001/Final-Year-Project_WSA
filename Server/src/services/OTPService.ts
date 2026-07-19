@@ -23,7 +23,7 @@ export class OTPService {
       const subject = `Your OTP for ${purpose}`;
       const message = `
         <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Aegis - OTP Verification</h2>
+          <h2 style="color: #333;">Raksha - OTP Verification</h2>
           <p style="font-size: 16px; color: #555;">Your OTP for ${purpose} is:</p>
           <div style="background-color: #f4f4f4; padding: 15px; border-radius: 5px; text-align: center; margin: 20px 0;">
             <h1 style="color: #2c3e50; letter-spacing: 5px; margin: 0;">${otp}</h1>

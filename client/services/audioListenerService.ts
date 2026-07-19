@@ -113,15 +113,12 @@ const startAndroidForegroundService = async () => {
   if (Platform.OS !== "android" || isForegroundServiceActive) return;
 
   if (!sosButtonSubscription) {
-    sosButtonSubscription = DeviceEventEmitter.addListener(
-      "triggerSOS",
-      () => {
-        console.log("[AudioService] SOS triggered from notification button.");
-        triggerGlobalSos().catch((e) =>
-          console.error("[AudioService] Notification SOS failed:", e),
-        );
-      },
-    );
+    sosButtonSubscription = DeviceEventEmitter.addListener("triggerSOS", () => {
+      console.log("[AudioService] SOS triggered from notification button.");
+      triggerGlobalSos().catch((e) =>
+        console.error("[AudioService] Notification SOS failed:", e),
+      );
+    });
   }
 
   try {
@@ -144,14 +141,14 @@ const startAndroidForegroundService = async () => {
       {
         delay: 5000,
         onLoop: true,
-        taskId: "Aegis_background_audio",
+        taskId: "Raksha_background_audio",
         onError: (e: any) => console.log("[AudioService] Task error:", e),
       },
     );
 
     ReactNativeForegroundService.start({
       id: 1244,
-      title: "Aegis Background Monitoring",
+      title: "Raksha Background Monitoring",
       message: "Listening for your safety codeword.",
       icon: "ic_launcher",
       button: true,
@@ -183,7 +180,7 @@ export const startBackgroundListener = async () => {
 export const stopBackgroundListener = () => {
   console.log("[AudioService] Stopping background listener...");
   if (Platform.OS === "android" && isForegroundServiceActive) {
-    ReactNativeForegroundService.remove_task("Aegis_background_audio");
+    ReactNativeForegroundService.remove_task("Raksha_background_audio");
     ReactNativeForegroundService.stop();
     isForegroundServiceActive = false;
   }

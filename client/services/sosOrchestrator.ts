@@ -1,4 +1,5 @@
 import sendSMS from "@/api/smsApi";
+import { broadcastSos } from "@/api/sosApi";
 import { useLocationStore } from "@/store/useLocationStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -66,6 +67,16 @@ export const triggerGlobalSos = async (
 
   const phoneNumbers = authStore.trustedContacts.map((c) => c.mobile);
 
+  // Fire-and-forget: broadcast an SOS push to nearby users. Never let a
+  // broadcast failure affect the SMS/return logic below.
+  const broadcastToNearbyUsers = () => {
+    const lat = location?.lat;
+    const lon = location?.lon;
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      broadcastSos(lat as number, lon as number, triggerType).catch(() => {});
+    }
+  };
+
   try {
     const response = await sendSMS(location as any, phoneNumbers);
     if (!response.success) {
@@ -76,6 +87,9 @@ export const triggerGlobalSos = async (
     startSurroundingsRecording(triggerType).catch((e) =>
       console.error("[SosOrchestrator] Surroundings recording error:", e),
     );
+
+    // Fire-and-forget: alert nearby users
+    broadcastToNearbyUsers();
 
     return true;
   } catch (error) {
@@ -91,6 +105,9 @@ export const triggerGlobalSos = async (
         e,
       ),
     );
+
+    // Also alert nearby users even on failure
+    broadcastToNearbyUsers();
 
     // Throw so caller knows it failed synchronously
     throw error;

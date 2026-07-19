@@ -198,7 +198,7 @@ Please check on them immediately or call emergency services.`;
           <div style="background:#fef2f2;padding:15px;border-radius:8px;margin:15px 0;border-left:4px solid #dc2626;">
             <p style="margin:0;color:#991b1b;font-weight:bold;">⚠️ Please check on ${user?.name} immediately or contact emergency services!</p>
           </div>
-          <p style="color:#6b7280;font-size:12px;margin-top:20px;">Sent at ${new Date().toLocaleString()} — Aegis Safety App</p>
+          <p style="color:#6b7280;font-size:12px;margin-top:20px;">Sent at ${new Date().toLocaleString()} — Raksha Safety App</p>
         </div>
       </div>`;
 

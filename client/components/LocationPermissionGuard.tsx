@@ -156,7 +156,7 @@ export default function LocationPermissionGuard({
 
           <Text style={styles.title}>Location Access Required</Text>
           <Text style={styles.subtitle}>
-            Aegis needs access to your location to provide safety features and
+            Raksha needs access to your location to provide safety features and
             emergency alerts.
           </Text>
 

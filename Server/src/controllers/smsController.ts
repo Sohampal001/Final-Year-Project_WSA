@@ -195,7 +195,7 @@ Please check on them immediately or call emergency services.`;
                 } immediately or contact emergency services!</p>
               </div>
 
-              <p style="color: #6b7280; font-size: 12px; margin-top: 20px;">This is an automated emergency alert from Aegis Safety App. Sent at ${new Date().toLocaleString()}</p>
+              <p style="color: #6b7280; font-size: 12px; margin-top: 20px;">This is an automated emergency alert from Raksha Safety App. Sent at ${new Date().toLocaleString()}</p>
             </div>
           </div>
         `;

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { useSafetyStore } from "./useSafetyStore";
+import { deregisterPushNotifications } from "../services/pushNotificationService";
 
 interface User {
   _id: string;
@@ -90,6 +91,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     try {
+      // Deregister this device from push BEFORE clearing the auth token
+      // (the request needs the token) so it stops getting this user's alerts.
+      await deregisterPushNotifications().catch(() => {});
+
       await AsyncStorage.removeItem("authToken");
       await AsyncStorage.removeItem("userId");
       await AsyncStorage.removeItem("user");

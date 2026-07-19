@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "Aegis",
-    "slug": "Aegis",
+    "name": "Raksha",
+    "slug": "Raksha",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "aegis",
+    "scheme": "raksha",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow Aegis to access your location for safety features and emergency alerts.",
-        "NSLocationAlwaysUsageDescription": "Allow Aegis to access your location even when the app is in the background for continuous safety monitoring.",
-        "NSLocationWhenInUseUsageDescription": "Allow Aegis to access your location while using the app for safety features.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow Raksha to access your location for safety features and emergency alerts.",
+        "NSLocationAlwaysUsageDescription": "Allow Raksha to access your location even when the app is in the background for continuous safety monitoring.",
+        "NSLocationWhenInUseUsageDescription": "Allow Raksha to access your location while using the app for safety features.",
         "UIBackgroundModes": [
           "location",
           "audio",
@@ -39,7 +39,8 @@
         "android.permission.FOREGROUND_SERVICE_MICROPHONE",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.aegis.app",
+      "package": "com.raksha.app",
+      "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
           "apiKey": "api_key"
@@ -56,9 +57,9 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Aegis to access your location for safety features and emergency alerts.",
-          "locationAlwaysPermission": "Allow Aegis to access your location even when the app is in the background for continuous safety monitoring.",
-          "locationWhenInUsePermission": "Allow Aegis to access your location while using the app for safety features.",
+          "locationAlwaysAndWhenInUsePermission": "Allow Raksha to access your location for safety features and emergency alerts.",
+          "locationAlwaysPermission": "Allow Raksha to access your location even when the app is in the background for continuous safety monitoring.",
+          "locationWhenInUsePermission": "Allow Raksha to access your location while using the app for safety features.",
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
@@ -79,10 +80,13 @@
         "expo-maps",
         {
           "requestLocationPermission": true,
-          "locationPermission": "Allow Aegis to access your location for safety features and emergency alerts."
+          "locationPermission": "Allow Raksha to access your location for safety features and emergency alerts."
         }
       ],
-      "expo-speech-recognition"
+      "expo-speech-recognition",
+      "expo-font",
+      "expo-web-browser",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,

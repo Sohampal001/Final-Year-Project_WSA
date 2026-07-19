@@ -112,7 +112,7 @@ export default function LoginScreen() {
               color="#ffffff"
             />
           </View>
-          <Text style={styles.loginTitle}>Aegis</Text>
+          <Text style={styles.loginTitle}>Raksha</Text>
           <Text style={styles.loginSubtitle}>Your safety, our priority</Text>
         </View>
 
