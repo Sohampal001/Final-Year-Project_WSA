@@ -92,6 +92,20 @@ export const uploadSosAudio = async (req: Request, res: Response) => {
     const audioRecord = await AudioRecord.create(createData);
     console.log("✅ [Audio] Saved to DB:", audioRecord._id);
 
+    // Respond to the client NOW — the recording is safely uploaded + saved.
+    // Contact notification (SMS/email) runs afterwards on the server, so a slow
+    // or blacklisted SMS provider can never make the client think the upload
+    // failed (that was the "audio upload failed" network timeout).
+    res.status(200).json({
+      success: true,
+      message: "SOS audio processed successfully",
+      data: {
+        audioId: audioRecord._id,
+        cloudinaryUrl,
+        riskAnalysis: riskResult,
+      },
+    });
+
     // 6. Notify trusted contacts
     const user = await User.findById(userId).select("name mobile email");
     const trustedContacts = await TrustedContact.find({
@@ -104,6 +118,9 @@ export const uploadSosAudio = async (req: Request, res: Response) => {
       .map((c: any) => c.mobile)
       .filter(Boolean);
     const isProd = process.env.NODE_ENV === "production";
+    // SMS only goes out when explicitly enabled. When false we skip Fast2SMS
+    // entirely (avoids the "IP blacklisted" error) — email still goes out.
+    const SEND_SMS = process.env.SEND_SMS === "true";
 
     const riskBadge = riskResult
       ? `Risk Level: ${riskResult.risk_level} (score: ${riskResult.score.toFixed(2)})`
@@ -128,8 +145,8 @@ Please check on them immediately or call emergency services.`;
     let emailSent = false;
     const notifiedContacts: string[] = [];
 
-    // ── SMS (production only) ─────────────────────────────────────────────────
-    if (isProd && phoneNumbers.length > 0) {
+    // ── SMS (only when SEND_SMS is enabled) ───────────────────────────────────
+    if (SEND_SMS && isProd && phoneNumbers.length > 0) {
       try {
         await FAST2SMS.sendMessage(smsMessage, phoneNumbers);
         smsSent = true;
@@ -139,11 +156,8 @@ Please check on them immediately or call emergency services.`;
         console.error("❌ [Audio] SMS failed:", (e as Error).message);
         // SMS failed — email will still go out below
       }
-    } else if (!isProd) {
-      console.log(
-        "🛠️ [Audio] Dev mode — SMS skipped. Would notify:",
-        phoneNumbers,
-      );
+    } else {
+      console.log("📵 [Audio] SMS skipped (SEND_SMS off or dev). Email only.");
     }
 
     // ── Email (always attempted — guardian + any trusted contact emails) ──────
@@ -234,23 +248,21 @@ Please check on them immediately or call emergency services.`;
       notifiedContacts,
     });
 
-    return res.status(200).json({
-      success: true,
-      message: "SOS audio processed successfully",
-      data: {
-        audioId: audioRecord._id,
-        cloudinaryUrl,
-        riskAnalysis: riskResult,
-        smsSent,
-        emailSent,
-      },
-    });
+    // Client was already told success right after the DB save; nothing more to
+    // return. The notification status lives in the AudioRecord update above.
+    console.log("✅ [Audio] Notifications done. smsSent:", smsSent, "emailSent:", emailSent);
+    return;
   } catch (error) {
     console.error("❌ [Audio] Controller error:", (error as Error).message);
-    return res.status(500).json({
-      success: false,
-      message: (error as Error).message,
-    });
+    // Only respond if we haven't already sent the 200 (i.e. failure happened
+    // before/at the upload+save stage). A post-response error just logs.
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        message: (error as Error).message,
+      });
+    }
+    return;
   } finally {
     cleanupTempFiles(...([tempInputPath, wavPath].filter(Boolean) as string[]));
   }
