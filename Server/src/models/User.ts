@@ -17,6 +17,7 @@ export interface IUser extends Document {
   workAddress?: string;
   status: "ACTIVE" | "SUSPENDED" | "DELETED";
   lastLoginAt?: Date;
+  expoPushTokens: string[];
 }
 
 const UserSchema = new Schema<IUser>(
@@ -51,6 +52,8 @@ const UserSchema = new Schema<IUser>(
     },
 
     lastLoginAt: Date,
+
+    expoPushTokens: { type: [String], default: [] },
   },
   { timestamps: true }
 );

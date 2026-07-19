@@ -5,11 +5,16 @@ import { useAuthStore } from "../../store/useAuthStore";
 import { useSafetyStore } from "../../store/useSafetyStore";
 import { useHomeBootstrapStore } from "../../store/useHomeBootstrapStore";
 import { triggerGlobalSos } from "../../services/sosOrchestrator";
+import {
+  openBatteryOptimizationSettings,
+  promptDisableBatteryOptimization,
+} from "../../services/batteryOptimizationService";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { AppleMaps, GoogleMaps } from "expo-maps";
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import * as Location from "expo-location";
 import {
   Platform,
   SafeAreaView,
@@ -86,8 +91,12 @@ export default function HomeScreen() {
   const location = useLocationStore((state) => state.location);
   const { user, trustedContacts } = useAuthStore();
   const nearbyUsers = useHomeBootstrapStore((state) => state.nearbyUsers);
-  const nearbyLocations = useHomeBootstrapStore((state) => state.nearbyLocations);
-  const bootstrapHomeData = useHomeBootstrapStore((state) => state.bootstrapHomeData);
+  const nearbyLocations = useHomeBootstrapStore(
+    (state) => state.nearbyLocations,
+  );
+  const bootstrapHomeData = useHomeBootstrapStore(
+    (state) => state.bootstrapHomeData,
+  );
   const router = useRouter();
   const mapRef = useRef<any>(null);
 
@@ -170,7 +179,49 @@ export default function HomeScreen() {
     Alert.alert("Error", "Phone number not available");
   };
 
-  const locationLabel = getShortLocationLabel(user);
+  // Show the CURRENT location: reverse-geocode live GPS coords into a readable
+  // label; fall back to raw lat/long, then to a placeholder. Never the profile
+  // home/work address.
+  const [geoLabel, setGeoLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    const lat = location?.lat;
+    const lon = location?.lon;
+    if (typeof lat !== "number" || typeof lon !== "number") {
+      setGeoLabel(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const results = await Location.reverseGeocodeAsync({
+          latitude: lat,
+          longitude: lon,
+        });
+        const p = results?.[0];
+        if (!cancelled && p) {
+          const label = [
+            p.name || p.street,
+            p.district || p.subregion || p.city,
+          ]
+            .filter(Boolean)
+            .join(", ");
+          setGeoLabel(label || null);
+        }
+      } catch {
+        if (!cancelled) setGeoLabel(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [location?.lat, location?.lon]);
+
+  const locationLabel =
+    geoLabel ||
+    (typeof location?.lat === "number" && typeof location?.lon === "number"
+      ? `${location.lat.toFixed(5)}, ${location.lon.toFixed(5)}`
+      : "Locating your position…");
   const nearbyUserCount = nearbyUsers?.length || 0;
 
   const onRefresh = async () => {
@@ -204,9 +255,13 @@ export default function HomeScreen() {
 
     return {
       policeStations:
-        selectedFilter === "policeStations" ? nearbyLocations.policeStations : [],
-      hospitals: selectedFilter === "hospitals" ? nearbyLocations.hospitals : [],
-      pharmacies: selectedFilter === "pharmacies" ? nearbyLocations.pharmacies : [],
+        selectedFilter === "policeStations"
+          ? nearbyLocations.policeStations
+          : [],
+      hospitals:
+        selectedFilter === "hospitals" ? nearbyLocations.hospitals : [],
+      pharmacies:
+        selectedFilter === "pharmacies" ? nearbyLocations.pharmacies : [],
       busStops: selectedFilter === "busStops" ? nearbyLocations.busStops : [],
     };
   }, [selectedFilter, nearbyLocations]);
@@ -228,7 +283,10 @@ export default function HomeScreen() {
     ];
 
     (nearbyUsers || []).forEach((person, index) => {
-      if (!Number.isFinite(person.latitude) || !Number.isFinite(person.longitude)) {
+      if (
+        !Number.isFinite(person.latitude) ||
+        !Number.isFinite(person.longitude)
+      ) {
         return;
       }
 
@@ -247,7 +305,10 @@ export default function HomeScreen() {
     });
 
     const placeGroups: { key: CategoryKey; list: any[] }[] = [
-      { key: "policeStations", list: filteredLocationGroups.policeStations || [] },
+      {
+        key: "policeStations",
+        list: filteredLocationGroups.policeStations || [],
+      },
       { key: "hospitals", list: filteredLocationGroups.hospitals || [] },
       { key: "pharmacies", list: filteredLocationGroups.pharmacies || [] },
       { key: "busStops", list: filteredLocationGroups.busStops || [] },
@@ -295,7 +356,7 @@ export default function HomeScreen() {
               />
             </View>
             <View>
-              <Text style={styles.homeTitle}>Aegis – The Safety App</Text>
+              <Text style={styles.homeTitle}>Raksha – The Safety App</Text>
               <Text style={styles.homeSubtitle}>Stay Safe, Stay Connected</Text>
             </View>
           </View>
@@ -318,7 +379,9 @@ export default function HomeScreen() {
           </View>
           <View style={styles.warningContent}>
             <Text style={styles.warningTitle}>No Trusted Contacts Set</Text>
-            <Text style={styles.warningMessage}>Add at least one trusted contact</Text>
+            <Text style={styles.warningMessage}>
+              Add at least one trusted contact
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#dc2626" />
         </TouchableOpacity>
@@ -372,42 +435,43 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.categoryRow}>
-          {(
-            Object.keys(CATEGORY_META) as CategoryKey[]
-          ).map((key: CategoryKey) => {
-            const item = CATEGORY_META[key];
-            const isSelected = selectedFilter === key;
-            const count =
-              key === "policeStations"
-                ? nearbyLocations.policeStations.length
-                : key === "hospitals"
-                  ? nearbyLocations.hospitals.length
-                  : key === "pharmacies"
-                    ? nearbyLocations.pharmacies.length
-                    : nearbyLocations.busStops.length;
+          {(Object.keys(CATEGORY_META) as CategoryKey[]).map(
+            (key: CategoryKey) => {
+              const item = CATEGORY_META[key];
+              const isSelected = selectedFilter === key;
+              const count =
+                key === "policeStations"
+                  ? nearbyLocations.policeStations.length
+                  : key === "hospitals"
+                    ? nearbyLocations.hospitals.length
+                    : key === "pharmacies"
+                      ? nearbyLocations.pharmacies.length
+                      : nearbyLocations.busStops.length;
 
-            return (
-              <TouchableOpacity
-                key={key}
-                style={[
-                  styles.categoryButton,
-                  isSelected && { borderColor: item.color, backgroundColor: "#ffffff" },
-                ]}
-                onPress={() =>
-                  setSelectedFilter((current) => (current === key ? "all" : key))
-                }
-                activeOpacity={0.85}
-              >
-                <MaterialCommunityIcons
-                  name={item.icon}
+              return (
+                <TouchableOpacity
+                  key={key}
+                  style={[
+                    styles.categoryButton,
+                    isSelected && {
+                      borderColor: item.color,
+                      backgroundColor: "#ffffff",
+                    },
+                  ]}
+                  onPress={() => router.push(`/places/${key}`)}
+                  activeOpacity={0.85}
+                >
+                  <MaterialCommunityIcons
+                    name={item.icon}
                     size={24}
-                  color={item.color}
-                />
-                <Text style={styles.categoryText}>{item.title}</Text>
-                <Text style={styles.categoryCount}>{count}</Text>
-              </TouchableOpacity>
-            );
-          })}
+                    color={item.color}
+                  />
+                  <Text style={styles.categoryText}>{item.title}</Text>
+                  <Text style={styles.categoryCount}>{count}</Text>
+                </TouchableOpacity>
+              );
+            },
+          )}
         </View>
 
         <View style={styles.emergencyWrapper}>
@@ -444,16 +508,28 @@ export default function HomeScreen() {
           <View style={styles.rowBetweenCompact}>
             <View style={styles.rowCenter}>
               <View style={styles.listenIconBox}>
-                <Ionicons name="volume-high-outline" size={18} color="#ffffff" />
+                <Ionicons
+                  name="volume-high-outline"
+                  size={18}
+                  color="#ffffff"
+                />
               </View>
               <Text style={styles.listenTitle}>Background Listen</Text>
             </View>
             <TouchableOpacity
-              onPress={() => toggleBackgroundListening(!isBackgroundListening)}
+              onPress={() => {
+                const next = !isBackgroundListening;
+                toggleBackgroundListening(next);
+                if (next) {
+                  promptDisableBatteryOptimization();
+                }
+              }}
               style={[
                 styles.toggleOuter,
                 {
-                  backgroundColor: isBackgroundListening ? "#0f766e" : "#d1d5db",
+                  backgroundColor: isBackgroundListening
+                    ? "#0f766e"
+                    : "#d1d5db",
                 },
               ]}
             >
@@ -461,17 +537,37 @@ export default function HomeScreen() {
                 style={[
                   styles.toggleInner,
                   {
-                    alignSelf: isBackgroundListening ? "flex-end" : "flex-start",
+                    alignSelf: isBackgroundListening
+                      ? "flex-end"
+                      : "flex-start",
                   },
                 ]}
               />
             </TouchableOpacity>
           </View>
+          {isBackgroundListening && Platform.OS === "android" && (
+            <TouchableOpacity
+              onPress={openBatteryOptimizationSettings}
+              style={styles.batteryLinkRow}
+            >
+              <Ionicons
+                name="battery-charging-outline"
+                size={14}
+                color="#0f766e"
+              />
+              <Text style={styles.batteryLinkText}>
+                Fix background reliability (battery settings)
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.sosSection}>
           <TouchableOpacity
-            style={[styles.sosButton, !hasTrustedContacts && styles.sosButtonDisabled]}
+            style={[
+              styles.sosButton,
+              !hasTrustedContacts && styles.sosButtonDisabled,
+            ]}
             onPress={handlePress}
             disabled={sosLoading}
             activeOpacity={hasTrustedContacts ? 0.75 : 0.95}
@@ -752,6 +848,20 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     backgroundColor: "#ffffff",
+  },
+  batteryLinkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 6,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: "#bfdbfe",
+  },
+  batteryLinkText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#0f766e",
   },
   sosSection: {
     alignItems: "center",

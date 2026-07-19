@@ -13,7 +13,9 @@ import { useAuthStore } from "../store/useAuthStore";
 import { useLocationStore } from "../store/useLocationStore";
 
 // ── Duration ────────────────────────────────────────────────────────────────
-const RECORDING_DURATION_SECONDS: number = __DEV__ ? 10 : 30;
+const RECORDING_DURATION_SECONDS: number = Number(
+  process.env.EXPO_PUBLIC_SOS_RECORDING_DURATION_SECONDS ?? 30,
+);
 
 // ── Module-level flag ────────────────────────────────────────────────────────
 let _isRecording = false;

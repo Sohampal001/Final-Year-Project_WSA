@@ -130,20 +130,29 @@ Please check on them immediately or call emergency services.`;
 
     // In development mode, skip Fast2SMS and only send email
     const isProd = process.env.NODE_ENV === "production";
+    const SEND_SMS = process.env.SEND_SMS === "true";
     let smsResponse: { sent: boolean; request_id?: string };
 
-    if (!isProd) {
-      console.log("🛠️ Development mode — skipping Fast2SMS, email only.");
-      console.log("📵 Would have sent SMS to:", numbersArray);
-      smsResponse = { sent: true, request_id: `dev-${Date.now()}` };
+    if (SEND_SMS) {
+      if (!isProd) {
+        console.log("🛠️ Development mode — skipping Fast2SMS, email only.");
+        console.log("📵 Would have sent SMS to:", numbersArray);
+        smsResponse = { sent: true, request_id: `dev-${Date.now()}` };
+      } else {
+        // Send SMS to all trusted contacts
+        console.log("📤 Calling SMS service...");
+        smsResponse = await FAST2SMS.sendMessage(message, numbersArray);
+        console.log(
+          "📤 SMS Service Response:",
+          JSON.stringify(smsResponse, null, 2),
+        );
+      }
     } else {
-      // Send SMS to all trusted contacts
-      console.log("📤 Calling SMS service...");
-      smsResponse = await FAST2SMS.sendMessage(message, numbersArray);
-      console.log(
-        "📤 SMS Service Response:",
-        JSON.stringify(smsResponse, null, 2),
-      );
+      console.log("📵 SEND_SMS is false — skipping SMS sending.");
+      smsResponse = {
+        sent: false,
+        request_id: isProd ? `prod-${Date.now()}` : `dev-${Date.now()}`,
+      };
     }
 
     // Fetch guardian email for email notification
@@ -195,7 +204,7 @@ Please check on them immediately or call emergency services.`;
                 } immediately or contact emergency services!</p>
               </div>
 
-              <p style="color: #6b7280; font-size: 12px; margin-top: 20px;">This is an automated emergency alert from Aegis Safety App. Sent at ${new Date().toLocaleString()}</p>
+              <p style="color: #6b7280; font-size: 12px; margin-top: 20px;">This is an automated emergency alert from Raksha Safety App. Sent at ${new Date().toLocaleString()}</p>
             </div>
           </div>
         `;
@@ -238,21 +247,28 @@ Please check on them immediately or call emergency services.`;
 
     console.log("✅ SMS history saved to database");
 
-    if (smsResponse?.sent) {
-      console.log("🎉 SMS sent successfully!");
-      console.log("📊 Response data:", {
-        smsCount: numbersArray.length,
+    // Treat the SOS as successful if SMS went out, OR the guardian email went
+    // out, OR SMS is intentionally disabled (SEND_SMS !== "true"). Only a real
+    // failure (SMS enabled but send failed, and no email) returns an error — so
+    // disabling SMS never makes the app report a failed SOS.
+    const alertDispatched = smsResponse?.sent || emailSent || !SEND_SMS;
+
+    if (alertDispatched) {
+      console.log("🎉 Emergency alert dispatched.", {
+        smsSent: !!smsResponse?.sent,
         emailSent,
-        requestId: smsResponse.request_id,
+        smsDisabled: !SEND_SMS,
       });
       return res.status(200).json({
         success: true,
-        sent: true,
-        message: "Emergency alerts sent successfully",
+        sent: !!smsResponse?.sent,
+        message: smsResponse?.sent
+          ? "Emergency alerts sent successfully"
+          : "Emergency alert dispatched (SMS disabled — email/push used)",
         data: {
-          smsCount: numbersArray.length,
+          smsCount: smsResponse?.sent ? numbersArray.length : 0,
           emailSent,
-          requestId: smsResponse.request_id,
+          requestId: smsResponse?.request_id,
         },
       });
     } else {

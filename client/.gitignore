@@ -43,3 +43,6 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Firebase (FCM) config — not a hard secret but keep out of git
+google-services.json

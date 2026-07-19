@@ -13,6 +13,8 @@ import { requestLogger } from "./src/middlewares/requestLogger.ts";
 import { nearbyPlacesRoute } from "./src/routes/nearbyPlacesRoute.ts";
 import { audioRoute } from "./src/routes/audioRoute.ts";
 import { homeRoute } from "./src/routes/homeRoute.ts";
+import { pushRoute } from "./src/routes/pushRoute.ts";
+import { sosRoute } from "./src/routes/sosRoute.ts";
 
 // Load environment variables
 dotenv.config();
@@ -52,6 +54,8 @@ app.use("/api/location", locationRoute);
 app.use("/api/nearby-places", nearbyPlacesRoute);
 app.use("/api/audio", audioRoute);
 app.use("/api/home", homeRoute);
+app.use("/api/push", pushRoute);
+app.use("/api/sos", sosRoute);
 
 // 404 handler
 app.use((req, res) => {
