@@ -130,20 +130,29 @@ Please check on them immediately or call emergency services.`;
 
     // In development mode, skip Fast2SMS and only send email
     const isProd = process.env.NODE_ENV === "production";
+    const SEND_SMS = process.env.SEND_SMS === "true";
     let smsResponse: { sent: boolean; request_id?: string };
 
-    if (!isProd) {
-      console.log("🛠️ Development mode — skipping Fast2SMS, email only.");
-      console.log("📵 Would have sent SMS to:", numbersArray);
-      smsResponse = { sent: true, request_id: `dev-${Date.now()}` };
+    if (SEND_SMS) {
+      if (!isProd) {
+        console.log("🛠️ Development mode — skipping Fast2SMS, email only.");
+        console.log("📵 Would have sent SMS to:", numbersArray);
+        smsResponse = { sent: true, request_id: `dev-${Date.now()}` };
+      } else {
+        // Send SMS to all trusted contacts
+        console.log("📤 Calling SMS service...");
+        smsResponse = await FAST2SMS.sendMessage(message, numbersArray);
+        console.log(
+          "📤 SMS Service Response:",
+          JSON.stringify(smsResponse, null, 2),
+        );
+      }
     } else {
-      // Send SMS to all trusted contacts
-      console.log("📤 Calling SMS service...");
-      smsResponse = await FAST2SMS.sendMessage(message, numbersArray);
-      console.log(
-        "📤 SMS Service Response:",
-        JSON.stringify(smsResponse, null, 2),
-      );
+      console.log("📵 SEND_SMS is false — skipping SMS sending.");
+      smsResponse = {
+        sent: false,
+        request_id: isProd ? `prod-${Date.now()}` : `dev-${Date.now()}`,
+      };
     }
 
     // Fetch guardian email for email notification
